@@ -1,0 +1,28 @@
+{
+  "name": "mini-app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://local_proxy@127.0.0.1:43219/git/ceciliadoutoraletras/mini-app"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@babel/standalone": "^8.0.2",
+    "lucide-react": "^0.344.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.12.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.1",
+    "esbuild": "^0.28.1",
+    "tailwindcss": "^4.3.1"
+  }
+}
