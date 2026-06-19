@@ -114,8 +114,6 @@
 
     const TASK_TIME_MAP = {
 
-      'Escrita': 2.5,
-
       'Revisão': 1.5,
 
       'Formatação': 1.0,
@@ -125,6 +123,14 @@
       'Análise de Dados': 3.5,
 
       'Outro': 1.0
+
+    };
+
+    const calcTempoTarefa = (t) => {
+
+      if (t.categoria === 'Escrita') return Math.max(0.5, Number(t.paginas || 1));
+
+      return TASK_TIME_MAP[t.categoria] || 1.0;
 
     };
 
@@ -166,7 +172,7 @@
 
       const [leituras, setLeituras] = useState(() => safeGet('acad_leituras', []));
 
-      const [novaTarefa, setNovaTarefa] = useState({ nome: '', categoria: 'Escrita', urgencia: 3, importancia: 3 });
+      const [novaTarefa, setNovaTarefa] = useState({ nome: '', categoria: 'Escrita', urgencia: 3, importancia: 3, paginas: 1 });
 
       const [novaLeitura, setNovaLeitura] = useState({ titulo: '', paginas: 15, relevancia: 'Media' });
 
@@ -234,7 +240,7 @@
 
             score: (Number(t.importancia) * 1.5) + (Number(t.urgencia) * 1.2),
 
-            tempoEstimado: TASK_TIME_MAP[t.categoria] || 1.0,
+            tempoEstimado: calcTempoTarefa(t),
 
             tipoItem: 'Tarefa'
 
@@ -258,7 +264,7 @@
 
           categoria: 'Leitura',
 
-          tempoEstimado: Math.round((l.paginas / 20) * 10) / 10,
+          tempoEstimado: Math.max(0.5, Math.round((l.paginas / 10) * 10) / 10),
 
           tipoItem: 'Leitura',
 
@@ -386,7 +392,7 @@
 
         setTarefas([...tarefas, { ...novaTarefa, id: Date.now(), concluida: false }]);
 
-        setNovaTarefa({ nome: '', categoria: 'Escrita', urgencia: 3, importancia: 3 });
+        setNovaTarefa({ nome: '', categoria: 'Escrita', urgencia: 3, importancia: 3, paginas: 1 });
 
       };
 
@@ -424,7 +430,7 @@
 
           Referencial: "Escreva 3 ideias soltas de autores que leu recentemente. Em seguida, crie uma frase sua que conecte as três opiniões.",
 
-          Conclusao: "Retome o seu objetivo geral. Escreva: 'Esta pesquisa alcançou seu objetivo porque...'. Seja direto e depois liste as limitações."
+          'Conclusão': "Retome o seu objetivo geral. Escreva: 'Esta pesquisa alcançou seu objetivo porque...'. Seja direto e depois liste as limitações."
 
         };
 
@@ -574,7 +580,7 @@
 
               <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-4">Organizador Acadêmico Semanal</h2>
 
-              <p className="text-slate-600 text-lg mb-6 leading-relaxed">Você não precisa de mais motivação. Você precisa de um planeamento honesto com as horas que realmente possui nos próximos 7 dias.</p>
+              <p className="text-slate-600 text-lg mb-6 leading-relaxed">Você não precisa de mais motivação. Você precisa de um planejamento honesto com as horas que realmente possui nos próximos 7 dias.</p>
 
               <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-4 text-sm text-left mb-8 flex gap-3">
 
@@ -838,11 +844,15 @@
 
                 <form onSubmit={handleAddTarefa} className="bg-slate-50 border border-slate-100 rounded-xl p-4 mb-4 grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
 
-                  <div className="md:col-span-5"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">O que precisa ser feito?</label><input type="text" value={novaTarefa.nome} onChange={e => setNovaTarefa({...novaTarefa, nome: e.target.value})} className="w-full text-sm p-2 border rounded-md" placeholder="Ex: Ajustar introdução" /></div>
+                  <div className="md:col-span-4"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">O que precisa ser feito?</label><input type="text" value={novaTarefa.nome} onChange={e => setNovaTarefa({...novaTarefa, nome: e.target.value})} className="w-full text-sm p-2 border rounded-md" placeholder="Ex: Ajustar introdução" /></div>
 
-                  <div className="md:col-span-3"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Ação / Categoria</label><select value={novaTarefa.categoria} onChange={e => setNovaTarefa({...novaTarefa, categoria: e.target.value})} className="w-full text-sm p-2 border rounded-md">{Object.keys(TASK_TIME_MAP).map(c=><option key={c}>{c}</option>)}</select></div>
+                  <div className="md:col-span-3"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Categoria</label><select value={novaTarefa.categoria} onChange={e => setNovaTarefa({...novaTarefa, categoria: e.target.value, paginas: 1})} className="w-full text-sm p-2 border rounded-md"><option>Escrita</option>{Object.keys(TASK_TIME_MAP).map(c=><option key={c}>{c}</option>)}</select></div>
 
-                  <div className="md:col-span-2"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Urgente (1-5)</label><select value={novaTarefa.urgencia} onChange={e => setNovaTarefa({...novaTarefa, urgencia: e.target.value})} className="w-full text-sm p-2 border rounded-md">{[1,2,3,4,5].map(v=><option key={v}>{v}</option>)}</select></div>
+                  {novaTarefa.categoria === 'Escrita' && (
+                    <div className="md:col-span-2"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nº de Páginas</label><input type="number" min="1" value={novaTarefa.paginas} onChange={e => setNovaTarefa({...novaTarefa, paginas: Number(e.target.value)})} className="w-full text-sm p-2 border rounded-md" /></div>
+                  )}
+
+                  <div className={novaTarefa.categoria === 'Escrita' ? 'md:col-span-1' : 'md:col-span-3'}><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Urgência (1-5)</label><select value={novaTarefa.urgencia} onChange={e => setNovaTarefa({...novaTarefa, urgencia: e.target.value})} className="w-full text-sm p-2 border rounded-md">{[1,2,3,4,5].map(v=><option key={v}>{v}</option>)}</select></div>
 
                   <div className="md:col-span-2"><button type="submit" className="w-full bg-indigo-600 text-white font-bold text-sm p-2 rounded-md hover:bg-indigo-700">Adicionar</button></div>
 
@@ -856,9 +866,9 @@
 
                     <div key={t.id} className="flex justify-between items-center bg-white border border-slate-100 p-3 rounded-lg hover:border-slate-300 transition-colors">
 
-                      <div><span className="text-[10px] font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded mr-2">{t.categoria}</span><span className="text-sm font-semibold">{t.nome}</span></div>
+                      <div><span className="text-[10px] font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded mr-2">{t.categoria}</span><span className="text-sm font-semibold">{t.nome}</span>{t.categoria === 'Escrita' && <span className="text-[10px] text-slate-400 ml-2">({t.paginas || 1} pág.)</span>}</div>
 
-                      <div className="flex items-center gap-3"><span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded">~{TASK_TIME_MAP[t.categoria]}h estimadas</span><button onClick={()=>handleRemoveTarefa(t.id)} className="text-slate-300 hover:text-red-500"><Trash2 className="w-4 h-4"/></button></div>
+                      <div className="flex items-center gap-3"><span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded">~{calcTempoTarefa(t)}h estimadas</span><button onClick={()=>handleRemoveTarefa(t.id)} className="text-slate-300 hover:text-red-500"><Trash2 className="w-4 h-4"/></button></div>
 
                     </div>
 
@@ -896,7 +906,7 @@
 
                       <div><span className={`text-[10px] font-bold px-2 py-0.5 rounded mr-2 ${l.relevancia==='Alta'?'bg-red-50 text-red-700':l.relevancia==='Media'?'bg-amber-50 text-amber-700':'bg-slate-100 text-slate-600'}`}>{l.relevancia}</span><span className="text-sm font-semibold">{l.titulo}</span></div>
 
-                      <div className="flex items-center gap-3"><span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded">~{Math.round((l.paginas/20)*10)/10}h de leitura</span><button onClick={()=>handleRemoveLeitura(l.id)} className="text-slate-300 hover:text-red-500"><Trash2 className="w-4 h-4"/></button></div>
+                      <div className="flex items-center gap-3"><span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded">~{Math.max(0.5, Math.round((l.paginas/10)*10)/10)}h estimadas</span><button onClick={()=>handleRemoveLeitura(l.id)} className="text-slate-300 hover:text-red-500"><Trash2 className="w-4 h-4"/></button></div>
 
                     </div>
 
@@ -964,7 +974,7 @@
 
                     <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
 
-                    <div className="text-sm"><strong className="font-black">Planeamento Sustentável.</strong> Parabéns! A quantidade de tarefas cabe perfeitamente nas horas que separou para trabalhar. Respire fundo e comece a executar.</div>
+                    <div className="text-sm"><strong className="font-black">Planejamento Sustentável.</strong> Parabéns! A quantidade de tarefas cabe perfeitamente nas horas que separou para trabalhar. Respire fundo e comece a executar.</div>
 
                   </div>
 
@@ -1080,7 +1090,7 @@
 
                   <h3 className="text-sm font-black text-amber-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Target className="w-5 h-5"/> A Regra de Ouro (MVP)</h3>
 
-                  <p className="text-xs text-slate-300 mb-4 leading-relaxed">Se imprevistos destruírem completamente o seu planeamento esta semana, foque em não deixar a pesquisa "morrer". Faça apenas as <strong>Metas Mínimas Viáveis</strong>:</p>
+                  <p className="text-xs text-slate-300 mb-4 leading-relaxed">Se imprevistos destruírem completamente o seu planejamento esta semana, foque em não deixar a pesquisa "morrer". Faça apenas as <strong>Metas Mínimas Viáveis</strong>:</p>
 
                   <ul className="space-y-3 text-sm font-semibold">
 
@@ -1102,19 +1112,19 @@
 
                     <strong className="text-sm text-indigo-900 block mb-2">A Técnica Pomodoro:</strong>
 
-                    <p className="mb-2">Nunca se sente à mesa com o objetivo vago de "vou estudar um pouco". Use blocos rígidos:</p>
+                    <p className="mb-2">Nunca sente na mesa com o objetivo vago de "vou estudar um pouco". Use blocos rígidos:</p>
 
                     <ol className="list-decimal pl-4 space-y-1 font-medium">
 
-                      <li>Trabalhe 100% focado e sem ecrãs secundários por <strong>25 minutos</strong>.</li>
+                      <li>Trabalhe 100% focado e sem outras telas por <strong>25 minutos</strong>.</li>
 
-                      <li>Pare <strong>imediatamente</strong> após o tempo e levante-se por <strong>5 minutos</strong>.</li>
+                      <li>Pare <strong>imediatamente</strong> e levante-se por <strong>5 minutos</strong>.</li>
 
                       <li>Repita o ciclo. Após 4 ciclos (2 horas), faça uma pausa longa de 20 minutos.</li>
 
                     </ol>
 
-                    <p className="mt-3 italic text-slate-500">Isto impede o cansaço ocular, alivia a espinha dorsal e previne a estafa mental provocada por stress crónico.</p>
+                    <p className="mt-3 italic text-slate-500">Isso evita o cansaço visual, alivia a coluna e previne o esgotamento mental causado por estresse crônico.</p>
 
                   </div>
 
@@ -1130,9 +1140,14 @@
 
                 <div className="flex flex-wrap justify-center gap-2 mb-4">
 
-                  {['Introdução', 'Metodologia', 'Referencial', 'Conclusao'].map(s => (
+                  {[
+                    { key: 'Introdução', label: 'Introdução' },
+                    { key: 'Metodologia', label: 'Metodologia' },
+                    { key: 'Referencial', label: 'Referencial' },
+                    { key: 'Conclusão', label: 'Conclusão' },
+                  ].map(s => (
 
-                    <button key={s} onClick={() => handleDestravar(s)} className={`px-4 py-2 border rounded-full text-xs font-bold transition-all ${destravarTema === s ? 'bg-amber-100 border-amber-300 text-amber-900 scale-105' : 'hover:bg-slate-50 text-slate-600'}`}>Destravar {s}</button>
+                    <button key={s.key} onClick={() => handleDestravar(s.key)} className={`px-4 py-2 border rounded-full text-xs font-bold transition-all ${destravarTema === s.key ? 'bg-amber-100 border-amber-300 text-amber-900 scale-105' : 'hover:bg-slate-50 text-slate-600'}`}>Destravar {s.label}</button>
 
                   ))}
 
@@ -1144,7 +1159,7 @@
 
 
 
-              <div className="flex justify-center mt-8 pb-8"><button onClick={() => setStep(4)} className="text-xs text-slate-400 hover:text-indigo-600 underline transition-colors">Voltar e ajustar o planeamento</button></div>
+              <div className="flex justify-center mt-8 pb-8"><button onClick={() => setStep(4)} className="text-xs text-slate-400 hover:text-indigo-600 underline transition-colors">Voltar e ajustar o planejamento</button></div>
 
             </div>
 
