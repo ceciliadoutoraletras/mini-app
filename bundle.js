@@ -47317,12 +47317,15 @@
     }
   };
   var TASK_TIME_MAP = {
-    "Escrita": 2.5,
     "Revis\xE3o": 1.5,
     "Formata\xE7\xE3o": 1,
     "Coleta de Dados": 3,
     "An\xE1lise de Dados": 3.5,
     "Outro": 1
+  };
+  var calcTempoTarefa = (tarefa) => {
+    if (tarefa.categoria === "Escrita") return Math.max(0.5, Number(tarefa.paginas || 1));
+    return TASK_TIME_MAP[tarefa.categoria] || 1;
   };
   function App() {
     const [step, setStep] = (0, import_react36.useState)(0);
@@ -47339,7 +47342,7 @@
     }));
     const [tarefas, setTarefas] = (0, import_react36.useState)(() => safeGet("acad_tarefas", []));
     const [leituras, setLeituras] = (0, import_react36.useState)(() => safeGet("acad_leituras", []));
-    const [novaTarefa, setNovaTarefa] = (0, import_react36.useState)({ nome: "", categoria: "Escrita", urgencia: 3, importancia: 3 });
+    const [novaTarefa, setNovaTarefa] = (0, import_react36.useState)({ nome: "", categoria: "Escrita", urgencia: 3, importancia: 3, paginas: 1 });
     const [novaLeitura, setNovaLeitura] = (0, import_react36.useState)({ titulo: "", paginas: 15, relevancia: "Media" });
     const [destravarTema, setDestravarTema] = (0, import_react36.useState)("");
     const [destravarDica, setDestravarDica] = (0, import_react36.useState)("");
@@ -47369,7 +47372,7 @@
       () => [...tarefas].map((t) => ({
         ...t,
         score: Number(t.importancia) * 1.5 + Number(t.urgencia) * 1.2,
-        tempoEstimado: TASK_TIME_MAP[t.categoria] || 1,
+        tempoEstimado: calcTempoTarefa(t),
         tipoItem: "Tarefa"
       })).sort((a2, b) => b.score - a2.score),
       [tarefas]
@@ -47380,7 +47383,7 @@
         ...l,
         nome: `Ler: ${l.titulo}`,
         categoria: "Leitura",
-        tempoEstimado: Math.round(l.paginas / 20 * 10) / 10,
+        tempoEstimado: Math.max(0.5, Math.round(l.paginas / 10 * 10) / 10),
         tipoItem: "Leitura",
         scoreWeight: relevanceWeight[l.relevancia]
       })).sort((a2, b) => {
@@ -47433,7 +47436,7 @@
       e.preventDefault();
       if (!novaTarefa.nome.trim()) return;
       setTarefas([...tarefas, { ...novaTarefa, id: Date.now(), concluida: false }]);
-      setNovaTarefa({ nome: "", categoria: "Escrita", urgencia: 3, importancia: 3 });
+      setNovaTarefa({ nome: "", categoria: "Escrita", urgencia: 3, importancia: 3, paginas: 1 });
     };
     const handleAddLeitura = (e) => {
       e.preventDefault();
@@ -47449,7 +47452,7 @@
         "Introdu\xE7\xE3o": "Responda numa frase direta: 'Por que este tema merece ser pesquisado e qual dor ele resolve?'. Escreva sem apagar por 10 minutos.",
         "Metodologia": "Liste o passo a passo como uma receita de bolo: 1\xBA Como coletou os dados, 2\xBA Como organizou, 3\xBA Que autores d\xE3o suporte.",
         "Referencial": "Escreva 3 ideias soltas de autores que leu recentemente. Em seguida, crie uma frase sua que conecte as tr\xEAs opini\xF5es.",
-        "Conclusao": "Retome o seu objetivo geral. Escreva: 'Esta pesquisa alcan\xE7ou seu objetivo porque...'. Seja direto e depois liste as limita\xE7\xF5es."
+        "Conclus\xE3o": "Retome o seu objetivo geral. Escreva: 'Esta pesquisa alcan\xE7ou seu objetivo porque...'. Seja direto e depois liste as limita\xE7\xF5es."
       };
       setDestravarDica(dicas[secao] || "Lembre-se: O primeiro rascunho tem apenas uma miss\xE3o - existir.");
     };
@@ -47533,7 +47536,7 @@ Foco: ${perfil.objetivo} (${perfil.nivel})
       step === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-white border border-slate-100 rounded-2xl p-8 shadow-sm text-center max-w-[680px] mx-auto mt-8", children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Calendar, { className: "w-8 h-8" }) }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { className: "text-3xl font-extrabold text-slate-900 tracking-tight mb-4", children: "Organizador Acad\xEAmico Semanal" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-slate-600 text-lg mb-6 leading-relaxed", children: "Voc\xEA n\xE3o precisa de mais motiva\xE7\xE3o. Voc\xEA precisa de um planeamento honesto com as horas que realmente possui nos pr\xF3ximos 7 dias." }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-slate-600 text-lg mb-6 leading-relaxed", children: "Voc\xEA n\xE3o precisa de mais motiva\xE7\xE3o. Voc\xEA precisa de um planejamento honesto com as horas que realmente possui nos pr\xF3ximos 7 dias." }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-4 text-sm text-left mb-8 flex gap-3", children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Target, { className: "w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
@@ -47727,16 +47730,23 @@ Foco: ${perfil.objetivo} (${perfil.nivel})
             " A. Suas Tarefas de Produ\xE7\xE3o"
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", { onSubmit: handleAddTarefa, className: "bg-slate-50 border border-slate-100 rounded-xl p-4 mb-4 grid grid-cols-1 md:grid-cols-12 gap-3 items-end", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "md:col-span-5", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "md:col-span-4", children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1", children: "O que precisa ser feito?" }),
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", { type: "text", value: novaTarefa.nome, onChange: (e) => setNovaTarefa({ ...novaTarefa, nome: e.target.value }), className: "w-full text-sm p-2 border rounded-md", placeholder: "Ex: Ajustar introdu\xE7\xE3o" })
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "md:col-span-3", children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1", children: "Categoria" }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", { value: novaTarefa.categoria, onChange: (e) => setNovaTarefa({ ...novaTarefa, categoria: e.target.value }), className: "w-full text-sm p-2 border rounded-md", children: Object.keys(TASK_TIME_MAP).map((c2) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { children: c2 }, c2)) })
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("select", { value: novaTarefa.categoria, onChange: (e) => setNovaTarefa({ ...novaTarefa, categoria: e.target.value, paginas: 1 }), className: "w-full text-sm p-2 border rounded-md", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { children: "Escrita" }),
+                Object.keys(TASK_TIME_MAP).map((c2) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { children: c2 }, c2))
+              ] })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "md:col-span-2", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1", children: "Urgente (1-5)" }),
+            novaTarefa.categoria === "Escrita" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "md:col-span-2", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1", children: "N\xBA de P\xE1ginas" }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", { type: "number", min: "1", value: novaTarefa.paginas, onChange: (e) => setNovaTarefa({ ...novaTarefa, paginas: Number(e.target.value) }), className: "w-full text-sm p-2 border rounded-md" })
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: novaTarefa.categoria === "Escrita" ? "md:col-span-1" : "md:col-span-3", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1", children: "Urg\xEAncia (1-5)" }),
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", { value: novaTarefa.urgencia, onChange: (e) => setNovaTarefa({ ...novaTarefa, urgencia: e.target.value }), className: "w-full text-sm p-2 border rounded-md", children: [1, 2, 3, 4, 5].map((v) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { children: v }, v)) })
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "md:col-span-2", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { type: "submit", className: "w-full bg-indigo-600 text-white font-bold text-sm p-2 rounded-md hover:bg-indigo-700", children: "Adicionar" }) })
@@ -47746,13 +47756,18 @@ Foco: ${perfil.objetivo} (${perfil.nivel})
             tarefas.map((t) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex justify-between items-center bg-white border border-slate-100 p-3 rounded-lg hover:border-slate-300 transition-colors", children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
                 /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-[10px] font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded mr-2", children: t.categoria }),
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-sm font-semibold", children: t.nome })
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-sm font-semibold", children: t.nome }),
+                t.categoria === "Escrita" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "text-[10px] text-slate-400 ml-2", children: [
+                  "(",
+                  t.paginas || 1,
+                  " p\xE1g.)"
+                ] })
               ] }),
               /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-3", children: [
                 /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded", children: [
                   "~",
-                  TASK_TIME_MAP[t.categoria],
-                  "h"
+                  calcTempoTarefa(t),
+                  "h estimadas"
                 ] }),
                 /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => handleRemoveTarefa(t.id), className: "text-slate-300 hover:text-red-500", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Trash2, { className: "w-4 h-4" }) })
               ] })
@@ -47793,8 +47808,8 @@ Foco: ${perfil.objetivo} (${perfil.nivel})
               /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-3", children: [
                 /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded", children: [
                   "~",
-                  Math.round(l.paginas / 20 * 10) / 10,
-                  "h"
+                  Math.max(0.5, Math.round(l.paginas / 10 * 10) / 10),
+                  "h estimadas"
                 ] }),
                 /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => handleRemoveLeitura(l.id), className: "text-slate-300 hover:text-red-500", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Trash2, { className: "w-4 h-4" }) })
               ] })
@@ -47927,40 +47942,52 @@ Foco: ${perfil.objetivo} (${perfil.nivel})
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-indigo-50 border border-indigo-100 rounded-2xl p-6 shadow-sm", children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", { className: "text-sm font-black text-indigo-900 uppercase tracking-widest mb-4 flex items-center gap-2", children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Clock, { className: "w-5 h-5 text-indigo-600" }),
-              " T\xE9cnica Pomodoro"
+              " Como Executar o Foco"
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("ol", { className: "list-decimal pl-4 space-y-1 text-xs font-medium text-slate-700", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [
-                "Foco total por ",
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "25 minutos" }),
-                "."
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-white p-4 rounded-xl shadow-sm text-xs text-slate-700 leading-relaxed", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { className: "text-sm text-indigo-900 block mb-2", children: "A T\xE9cnica Pomodoro:" }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "mb-2", children: 'Nunca sente na mesa com o objetivo vago de "vou estudar um pouco". Use blocos r\xEDgidos:' }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("ol", { className: "list-decimal pl-4 space-y-1 font-medium", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [
+                  "Trabalhe 100% focado e sem outras telas por ",
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "25 minutos" }),
+                  "."
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [
+                  "Pare ",
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "imediatamente" }),
+                  " e levante-se por ",
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "5 minutos" }),
+                  "."
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: "Repita o ciclo. Ap\xF3s 4 ciclos (2 horas), fa\xE7a uma pausa longa de 20 minutos." })
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [
-                "Pausa de ",
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "5 minutos" }),
-                "."
-              ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: "Ap\xF3s 4 ciclos, pausa longa de 20 minutos." })
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "mt-3 italic text-slate-500", children: "Isso evita o cansa\xE7o visual, alivia a coluna e previne o esgotamento mental causado por estresse cr\xF4nico." })
             ] })
           ] })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-white border border-slate-100 rounded-2xl p-6 shadow-sm text-center", children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { className: "text-sm font-black uppercase text-slate-400 mb-4", children: "S\xEDndrome da P\xE1gina em Branco?" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "flex flex-wrap justify-center gap-2 mb-4", children: ["Introdu\xE7\xE3o", "Metodologia", "Referencial", "Conclusao"].map((s2) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "flex flex-wrap justify-center gap-2 mb-4", children: [
+            { key: "Introdu\xE7\xE3o", label: "Introdu\xE7\xE3o" },
+            { key: "Metodologia", label: "Metodologia" },
+            { key: "Referencial", label: "Referencial" },
+            { key: "Conclus\xE3o", label: "Conclus\xE3o" }
+          ].map((s2) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
             "button",
             {
-              onClick: () => handleDestravar(s2),
-              className: `px-4 py-2 border rounded-full text-xs font-bold transition-all ${destravarTema === s2 ? "bg-amber-100 border-amber-300 text-amber-900" : "hover:bg-slate-50 text-slate-600"}`,
+              onClick: () => handleDestravar(s2.key),
+              className: `px-4 py-2 border rounded-full text-xs font-bold transition-all ${destravarTema === s2.key ? "bg-amber-100 border-amber-300 text-amber-900" : "hover:bg-slate-50 text-slate-600"}`,
               children: [
                 "Destravar ",
-                s2
+                s2.label
               ]
             },
-            s2
+            s2.key
           )) }),
           destravarDica && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-sm text-indigo-900 bg-indigo-50 border border-indigo-100 p-4 rounded-xl mx-auto max-w-xl font-medium", children: destravarDica })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "flex justify-center pb-8", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setStep(4), className: "text-xs text-slate-400 hover:text-indigo-600 underline", children: "Voltar e ajustar o planeamento" }) })
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "flex justify-center pb-8", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setStep(4), className: "text-xs text-slate-400 hover:text-indigo-600 underline", children: "Voltar e ajustar o planejamento" }) })
       ] })
     ] });
   }

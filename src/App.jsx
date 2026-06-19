@@ -16,12 +16,16 @@ const safeSet = (key, value) => {
 };
 
 const TASK_TIME_MAP = {
-  'Escrita': 2.5,
   'Revisão': 1.5,
   'Formatação': 1.0,
   'Coleta de Dados': 3.0,
   'Análise de Dados': 3.5,
   'Outro': 1.0
+};
+
+const calcTempoTarefa = (tarefa) => {
+  if (tarefa.categoria === 'Escrita') return Math.max(0.5, Number(tarefa.paginas || 1));
+  return TASK_TIME_MAP[tarefa.categoria] || 1.0;
 };
 
 function App() {
@@ -39,7 +43,7 @@ function App() {
   }));
   const [tarefas, setTarefas] = useState(() => safeGet('acad_tarefas', []));
   const [leituras, setLeituras] = useState(() => safeGet('acad_leituras', []));
-  const [novaTarefa, setNovaTarefa] = useState({ nome: '', categoria: 'Escrita', urgencia: 3, importancia: 3 });
+  const [novaTarefa, setNovaTarefa] = useState({ nome: '', categoria: 'Escrita', urgencia: 3, importancia: 3, paginas: 1 });
   const [novaLeitura, setNovaLeitura] = useState({ titulo: '', paginas: 15, relevancia: 'Media' });
   const [destravarTema, setDestravarTema] = useState('');
   const [destravarDica, setDestravarDica] = useState('');
@@ -68,7 +72,7 @@ function App() {
     [...tarefas].map(t => ({
       ...t,
       score: (Number(t.importancia) * 1.5) + (Number(t.urgencia) * 1.2),
-      tempoEstimado: TASK_TIME_MAP[t.categoria] || 1.0,
+      tempoEstimado: calcTempoTarefa(t),
       tipoItem: 'Tarefa'
     })).sort((a, b) => b.score - a.score),
     [tarefas]);
@@ -78,7 +82,7 @@ function App() {
       ...l,
       nome: `Ler: ${l.titulo}`,
       categoria: 'Leitura',
-      tempoEstimado: Math.round((l.paginas / 20) * 10) / 10,
+      tempoEstimado: Math.max(0.5, Math.round((l.paginas / 10) * 10) / 10),
       tipoItem: 'Leitura',
       scoreWeight: relevanceWeight[l.relevancia]
     })).sort((a, b) => {
@@ -132,7 +136,7 @@ function App() {
     e.preventDefault();
     if (!novaTarefa.nome.trim()) return;
     setTarefas([...tarefas, { ...novaTarefa, id: Date.now(), concluida: false }]);
-    setNovaTarefa({ nome: '', categoria: 'Escrita', urgencia: 3, importancia: 3 });
+    setNovaTarefa({ nome: '', categoria: 'Escrita', urgencia: 3, importancia: 3, paginas: 1 });
   };
   const handleAddLeitura = (e) => {
     e.preventDefault();
@@ -148,7 +152,7 @@ function App() {
       'Introdução': "Responda numa frase direta: 'Por que este tema merece ser pesquisado e qual dor ele resolve?'. Escreva sem apagar por 10 minutos.",
       'Metodologia': "Liste o passo a passo como uma receita de bolo: 1º Como coletou os dados, 2º Como organizou, 3º Que autores dão suporte.",
       'Referencial': "Escreva 3 ideias soltas de autores que leu recentemente. Em seguida, crie uma frase sua que conecte as três opiniões.",
-      'Conclusao': "Retome o seu objetivo geral. Escreva: 'Esta pesquisa alcançou seu objetivo porque...'. Seja direto e depois liste as limitações."
+      'Conclusão': "Retome o seu objetivo geral. Escreva: 'Esta pesquisa alcançou seu objetivo porque...'. Seja direto e depois liste as limitações."
     };
     setDestravarDica(dicas[secao] || "Lembre-se: O primeiro rascunho tem apenas uma missão - existir.");
   };
@@ -217,7 +221,7 @@ function App() {
         <div className="bg-white border border-slate-100 rounded-2xl p-8 shadow-sm text-center max-w-[680px] mx-auto mt-8">
           <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6"><Calendar className="w-8 h-8" /></div>
           <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-4">Organizador Acadêmico Semanal</h2>
-          <p className="text-slate-600 text-lg mb-6 leading-relaxed">Você não precisa de mais motivação. Você precisa de um planeamento honesto com as horas que realmente possui nos próximos 7 dias.</p>
+          <p className="text-slate-600 text-lg mb-6 leading-relaxed">Você não precisa de mais motivação. Você precisa de um planejamento honesto com as horas que realmente possui nos próximos 7 dias.</p>
           <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-4 text-sm text-left mb-8 flex gap-3">
             <Target className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
             <div><strong className="font-semibold block mb-1">Seja Realista.</strong>O mínimo bem feito é mil vezes melhor do que o plano perfeito que nunca sai do papel.</div>
@@ -369,17 +373,20 @@ function App() {
           <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm">
             <h3 className="text-lg font-bold flex items-center gap-2 mb-4"><ListTodo className="w-5 h-5 text-indigo-600"/> A. Suas Tarefas de Produção</h3>
             <form onSubmit={handleAddTarefa} className="bg-slate-50 border border-slate-100 rounded-xl p-4 mb-4 grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-              <div className="md:col-span-5"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">O que precisa ser feito?</label><input type="text" value={novaTarefa.nome} onChange={e => setNovaTarefa({...novaTarefa, nome: e.target.value})} className="w-full text-sm p-2 border rounded-md" placeholder="Ex: Ajustar introdução" /></div>
-              <div className="md:col-span-3"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Categoria</label><select value={novaTarefa.categoria} onChange={e => setNovaTarefa({...novaTarefa, categoria: e.target.value})} className="w-full text-sm p-2 border rounded-md">{Object.keys(TASK_TIME_MAP).map(c=><option key={c}>{c}</option>)}</select></div>
-              <div className="md:col-span-2"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Urgente (1-5)</label><select value={novaTarefa.urgencia} onChange={e => setNovaTarefa({...novaTarefa, urgencia: e.target.value})} className="w-full text-sm p-2 border rounded-md">{[1,2,3,4,5].map(v=><option key={v}>{v}</option>)}</select></div>
+              <div className="md:col-span-4"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">O que precisa ser feito?</label><input type="text" value={novaTarefa.nome} onChange={e => setNovaTarefa({...novaTarefa, nome: e.target.value})} className="w-full text-sm p-2 border rounded-md" placeholder="Ex: Ajustar introdução" /></div>
+              <div className="md:col-span-3"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Categoria</label><select value={novaTarefa.categoria} onChange={e => setNovaTarefa({...novaTarefa, categoria: e.target.value, paginas: 1})} className="w-full text-sm p-2 border rounded-md"><option>Escrita</option>{Object.keys(TASK_TIME_MAP).map(c=><option key={c}>{c}</option>)}</select></div>
+              {novaTarefa.categoria === 'Escrita' && (
+                <div className="md:col-span-2"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nº de Páginas</label><input type="number" min="1" value={novaTarefa.paginas} onChange={e => setNovaTarefa({...novaTarefa, paginas: Number(e.target.value)})} className="w-full text-sm p-2 border rounded-md" /></div>
+              )}
+              <div className={novaTarefa.categoria === 'Escrita' ? 'md:col-span-1' : 'md:col-span-3'}><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Urgência (1-5)</label><select value={novaTarefa.urgencia} onChange={e => setNovaTarefa({...novaTarefa, urgencia: e.target.value})} className="w-full text-sm p-2 border rounded-md">{[1,2,3,4,5].map(v=><option key={v}>{v}</option>)}</select></div>
               <div className="md:col-span-2"><button type="submit" className="w-full bg-indigo-600 text-white font-bold text-sm p-2 rounded-md hover:bg-indigo-700">Adicionar</button></div>
             </form>
             <div className="space-y-2">
               {tarefas.length === 0 && <p className="text-xs text-slate-400 italic text-center p-4">Nenhuma tarefa. Adicione acima.</p>}
               {tarefas.map(t => (
                 <div key={t.id} className="flex justify-between items-center bg-white border border-slate-100 p-3 rounded-lg hover:border-slate-300 transition-colors">
-                  <div><span className="text-[10px] font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded mr-2">{t.categoria}</span><span className="text-sm font-semibold">{t.nome}</span></div>
-                  <div className="flex items-center gap-3"><span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded">~{TASK_TIME_MAP[t.categoria]}h</span><button onClick={()=>handleRemoveTarefa(t.id)} className="text-slate-300 hover:text-red-500"><Trash2 className="w-4 h-4"/></button></div>
+                  <div><span className="text-[10px] font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded mr-2">{t.categoria}</span><span className="text-sm font-semibold">{t.nome}</span>{t.categoria === 'Escrita' && <span className="text-[10px] text-slate-400 ml-2">({t.paginas || 1} pág.)</span>}</div>
+                  <div className="flex items-center gap-3"><span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded">~{calcTempoTarefa(t)}h estimadas</span><button onClick={()=>handleRemoveTarefa(t.id)} className="text-slate-300 hover:text-red-500"><Trash2 className="w-4 h-4"/></button></div>
                 </div>
               ))}
             </div>
@@ -397,7 +404,7 @@ function App() {
               {leituras.map(l => (
                 <div key={l.id} className="flex justify-between items-center bg-white border border-slate-100 p-3 rounded-lg hover:border-slate-300">
                   <div><span className={`text-[10px] font-bold px-2 py-0.5 rounded mr-2 ${l.relevancia==='Alta'?'bg-red-50 text-red-700':l.relevancia==='Media'?'bg-amber-50 text-amber-700':'bg-slate-100 text-slate-600'}`}>{l.relevancia}</span><span className="text-sm font-semibold">{l.titulo}</span></div>
-                  <div className="flex items-center gap-3"><span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded">~{Math.round((l.paginas/20)*10)/10}h</span><button onClick={()=>handleRemoveLeitura(l.id)} className="text-slate-300 hover:text-red-500"><Trash2 className="w-4 h-4"/></button></div>
+                  <div className="flex items-center gap-3"><span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded">~{Math.max(0.5, Math.round((l.paginas/10)*10)/10)}h estimadas</span><button onClick={()=>handleRemoveLeitura(l.id)} className="text-slate-300 hover:text-red-500"><Trash2 className="w-4 h-4"/></button></div>
                 </div>
               ))}
             </div>
@@ -491,28 +498,38 @@ function App() {
               </ul>
             </div>
             <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-6 shadow-sm">
-              <h3 className="text-sm font-black text-indigo-900 uppercase tracking-widest mb-4 flex items-center gap-2"><Clock className="w-5 h-5 text-indigo-600"/> Técnica Pomodoro</h3>
-              <ol className="list-decimal pl-4 space-y-1 text-xs font-medium text-slate-700">
-                <li>Foco total por <strong>25 minutos</strong>.</li>
-                <li>Pausa de <strong>5 minutos</strong>.</li>
-                <li>Após 4 ciclos, pausa longa de 20 minutos.</li>
-              </ol>
+              <h3 className="text-sm font-black text-indigo-900 uppercase tracking-widest mb-4 flex items-center gap-2"><Clock className="w-5 h-5 text-indigo-600"/> Como Executar o Foco</h3>
+              <div className="bg-white p-4 rounded-xl shadow-sm text-xs text-slate-700 leading-relaxed">
+                <strong className="text-sm text-indigo-900 block mb-2">A Técnica Pomodoro:</strong>
+                <p className="mb-2">Nunca sente na mesa com o objetivo vago de "vou estudar um pouco". Use blocos rígidos:</p>
+                <ol className="list-decimal pl-4 space-y-1 font-medium">
+                  <li>Trabalhe 100% focado e sem outras telas por <strong>25 minutos</strong>.</li>
+                  <li>Pare <strong>imediatamente</strong> e levante-se por <strong>5 minutos</strong>.</li>
+                  <li>Repita o ciclo. Após 4 ciclos (2 horas), faça uma pausa longa de 20 minutos.</li>
+                </ol>
+                <p className="mt-3 italic text-slate-500">Isso evita o cansaço visual, alivia a coluna e previne o esgotamento mental causado por estresse crônico.</p>
+              </div>
             </div>
           </div>
 
           <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm text-center">
             <h3 className="text-sm font-black uppercase text-slate-400 mb-4">Síndrome da Página em Branco?</h3>
             <div className="flex flex-wrap justify-center gap-2 mb-4">
-              {['Introdução','Metodologia','Referencial','Conclusao'].map(s => (
-                <button key={s} onClick={() => handleDestravar(s)}
-                  className={`px-4 py-2 border rounded-full text-xs font-bold transition-all ${destravarTema === s ? 'bg-amber-100 border-amber-300 text-amber-900' : 'hover:bg-slate-50 text-slate-600'}`}>Destravar {s}</button>
+              {[
+                { key: 'Introdução', label: 'Introdução' },
+                { key: 'Metodologia', label: 'Metodologia' },
+                { key: 'Referencial', label: 'Referencial' },
+                { key: 'Conclusão', label: 'Conclusão' },
+              ].map(s => (
+                <button key={s.key} onClick={() => handleDestravar(s.key)}
+                  className={`px-4 py-2 border rounded-full text-xs font-bold transition-all ${destravarTema === s.key ? 'bg-amber-100 border-amber-300 text-amber-900' : 'hover:bg-slate-50 text-slate-600'}`}>Destravar {s.label}</button>
               ))}
             </div>
             {destravarDica && <p className="text-sm text-indigo-900 bg-indigo-50 border border-indigo-100 p-4 rounded-xl mx-auto max-w-xl font-medium">{destravarDica}</p>}
           </div>
 
           <div className="flex justify-center pb-8">
-            <button onClick={() => setStep(4)} className="text-xs text-slate-400 hover:text-indigo-600 underline">Voltar e ajustar o planeamento</button>
+            <button onClick={() => setStep(4)} className="text-xs text-slate-400 hover:text-indigo-600 underline">Voltar e ajustar o planejamento</button>
           </div>
         </div>
       )}
