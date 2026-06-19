@@ -29939,6 +29939,16 @@
     ["path", { d: "M13 18h8", key: "oe0vm4" }]
   ]);
 
+  // node_modules/lucide-react/dist/esm/icons/microscope.js
+  var Microscope = createLucideIcon("Microscope", [
+    ["path", { d: "M6 18h8", key: "1borvv" }],
+    ["path", { d: "M3 22h18", key: "8prr45" }],
+    ["path", { d: "M14 22a7 7 0 1 0 0-14h-1", key: "1jwaiy" }],
+    ["path", { d: "M9 14h2", key: "197e7h" }],
+    ["path", { d: "M9 12a2 2 0 0 1-2-2V6h6v4a2 2 0 0 1-2 2Z", key: "1bmzmy" }],
+    ["path", { d: "M12 6V3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3", key: "1drr47" }]
+  ]);
+
   // node_modules/lucide-react/dist/esm/icons/printer.js
   var Printer = createLucideIcon("Printer", [
     ["polyline", { points: "6 9 6 2 18 2 18 9", key: "1306q4" }],
@@ -47316,16 +47326,57 @@
     } catch (e) {
     }
   };
-  var TASK_TIME_MAP = {
-    "Revis\xE3o": 1.5,
-    "Formata\xE7\xE3o": 1,
-    "Coleta de Dados": 3,
-    "An\xE1lise de Dados": 3.5,
-    "Outro": 1
+  var CATEGORIAS_POR_PAGINA = ["Escrita", "Revis\xE3o", "Formata\xE7\xE3o", "Formata\xE7\xE3o de Refer\xEAncias", "An\xE1lise de Dados"];
+  var calcTempoTarefa = (t) => {
+    const pag = Math.max(1, Number(t.paginas || 1));
+    switch (t.categoria) {
+      case "Escrita":
+        return Math.round(pag * 10) / 10;
+      // 1h/pág
+      case "Revis\xE3o":
+        return Math.round(pag * 0.5 * 10) / 10;
+      // 30min/pág
+      case "Formata\xE7\xE3o":
+        return Math.max(0.5, Math.round(pag / 6 * 10) / 10);
+      // 10min/pág
+      case "Formata\xE7\xE3o de Refer\xEAncias":
+        return Math.round(pag * 10) / 10;
+      // 1h/pág
+      case "An\xE1lise de Dados":
+        return Math.round(pag * 2 * 10) / 10;
+      // 2h/pág
+      default:
+        return Number(t.horasEstimadas || 1);
+    }
   };
-  var calcTempoTarefa = (tarefa) => {
-    if (tarefa.categoria === "Escrita") return Math.max(0.5, Number(tarefa.paginas || 1));
-    return TASK_TIME_MAP[tarefa.categoria] || 1;
+  var gerarNomeAcao = (item, horasFazer) => {
+    const pag = Math.max(1, Number(item.paginas || 1));
+    const totalH = item.totalHoras || calcTempoTarefa(item);
+    const hPorPag = totalH / pag;
+    const pagFazer = horasFazer < totalH ? Math.max(1, Math.round(horasFazer / hPorPag)) : pag;
+    const cont = item.continuacao ? "(cont.) " : "";
+    if (item.tipoItem === "Leitura") {
+      const pgLeit = Math.max(1, Math.round(horasFazer / (totalH / pag)));
+      return `${cont}Ler ${horasFazer < totalH ? pgLeit + " p\xE1g. de" : ""} ${item.tituloOriginal || item.nome.replace("Ler: ", "")}`;
+    }
+    if (item.tipoItem === "Pratica") {
+      const desc = item.especificacao ? `${item.nome}: ${item.especificacao}` : item.nome;
+      return `${cont}${desc}`;
+    }
+    switch (item.categoria) {
+      case "Escrita":
+        return `${cont}Escrever ${pagFazer} p\xE1g.: ${item.nome}`;
+      case "Revis\xE3o":
+        return `${cont}Revisar ${pagFazer} p\xE1g.: ${item.nome}`;
+      case "Formata\xE7\xE3o":
+        return `${cont}Formatar ${pagFazer} p\xE1g.: ${item.nome}`;
+      case "Formata\xE7\xE3o de Refer\xEAncias":
+        return `${cont}Formatar refer\xEAncias (${pagFazer} p\xE1g.): ${item.nome}`;
+      case "An\xE1lise de Dados":
+        return `${cont}Analisar ${pagFazer} p\xE1g.: ${item.nome}`;
+      default:
+        return `${cont}${item.nome}`;
+    }
   };
   function App() {
     const [step, setStep] = (0, import_react36.useState)(0);
@@ -47342,8 +47393,13 @@
     }));
     const [tarefas, setTarefas] = (0, import_react36.useState)(() => safeGet("acad_tarefas", []));
     const [leituras, setLeituras] = (0, import_react36.useState)(() => safeGet("acad_leituras", []));
-    const [novaTarefa, setNovaTarefa] = (0, import_react36.useState)({ nome: "", categoria: "Escrita", urgencia: 3, importancia: 3, paginas: 1 });
-    const [novaLeitura, setNovaLeitura] = (0, import_react36.useState)({ titulo: "", paginas: 15, relevancia: "Media" });
+    const [praticas, setPraticas] = (0, import_react36.useState)(() => safeGet("acad_praticas", []));
+    const NOVA_TAREFA_DEFAULT = { nome: "", categoria: "Escrita", urgencia: 3, importancia: 3, paginas: 1 };
+    const NOVA_LEITURA_DEFAULT = { titulo: "", paginas: 15, relevancia: "Media" };
+    const NOVA_PRATICA_DEFAULT = { tipo: "Entrevista", especificacao: "", horasEstimadas: 1, urgencia: 3 };
+    const [novaTarefa, setNovaTarefa] = (0, import_react36.useState)(NOVA_TAREFA_DEFAULT);
+    const [novaLeitura, setNovaLeitura] = (0, import_react36.useState)(NOVA_LEITURA_DEFAULT);
+    const [novaPratica, setNovaPratica] = (0, import_react36.useState)(NOVA_PRATICA_DEFAULT);
     const [destravarTema, setDestravarTema] = (0, import_react36.useState)("");
     const [destravarDica, setDestravarDica] = (0, import_react36.useState)("");
     const [copiado, setCopiado] = (0, import_react36.useState)(false);
@@ -47352,6 +47408,7 @@
     (0, import_react36.useEffect)(() => safeSet("acad_turnos", turnos), [turnos]);
     (0, import_react36.useEffect)(() => safeSet("acad_tarefas", tarefas), [tarefas]);
     (0, import_react36.useEffect)(() => safeSet("acad_leituras", leituras), [leituras]);
+    (0, import_react36.useEffect)(() => safeSet("acad_praticas", praticas), [praticas]);
     const totalOcupado = (0, import_react36.useMemo)(
       () => horas.sono + Number(horas.trabalho) + Number(horas.deslocamento) + Number(horas.familia) + Number(horas.compromissos) + Number(horas.lazer),
       [horas]
@@ -47368,11 +47425,19 @@
       });
       return total;
     }, [turnos]);
+    const excedeLimite = totalHorasMapeadas > capacidadeRecomendada;
+    const handleSetTurno = (dia, turno, valor) => {
+      const novoTurnos = { ...turnos, [dia]: { ...turnos[dia], [turno]: Number(valor) } };
+      const novoTotal = Object.values(novoTurnos).reduce((acc, d) => acc + d.manha + d.tarde + d.noite, 0);
+      if (novoTotal > capacidadeRecomendada) return;
+      setTurnos(novoTurnos);
+    };
     const tarefasOrdenadas = (0, import_react36.useMemo)(
       () => [...tarefas].map((t) => ({
         ...t,
-        score: Number(t.importancia) * 1.5 + Number(t.urgencia) * 1.2,
+        score: Number(t.importancia) * 1.5 + Number(t.urgencia) * 2,
         tempoEstimado: calcTempoTarefa(t),
+        totalHoras: calcTempoTarefa(t),
         tipoItem: "Tarefa"
       })).sort((a2, b) => b.score - a2.score),
       [tarefas]
@@ -47382,50 +47447,70 @@
       return [...leituras].map((l) => ({
         ...l,
         nome: `Ler: ${l.titulo}`,
+        tituloOriginal: l.titulo,
         categoria: "Leitura",
         tempoEstimado: Math.max(0.5, Math.round(l.paginas / 10 * 10) / 10),
+        totalHoras: Math.max(0.5, Math.round(l.paginas / 10 * 10) / 10),
         tipoItem: "Leitura",
-        scoreWeight: relevanceWeight[l.relevancia]
-      })).sort((a2, b) => {
-        if (b.scoreWeight !== a2.scoreWeight) return b.scoreWeight - a2.scoreWeight;
-        return a2.paginas - b.paginas;
-      });
+        score: relevanceWeight[l.relevancia] * 4,
+        paginas: l.paginas
+      })).sort((a2, b) => b.score - a2.score);
     }, [leituras]);
-    const tempoEstimadoTarefas = (0, import_react36.useMemo)(() => {
+    const praticasOrdenadas = (0, import_react36.useMemo)(
+      () => [...praticas].map((p) => ({
+        ...p,
+        nome: p.tipo,
+        tempoEstimado: Number(p.horasEstimadas || 1),
+        totalHoras: Number(p.horasEstimadas || 1),
+        score: Number(p.urgencia) * 2,
+        tipoItem: "Pratica"
+      })).sort((a2, b) => b.score - a2.score),
+      [praticas]
+    );
+    const tempoEstimadoTotal = (0, import_react36.useMemo)(() => {
       const t = tarefasOrdenadas.reduce((acc, t2) => acc + t2.tempoEstimado, 0);
       const l = leiturasOrdenadas.reduce((acc, l2) => acc + l2.tempoEstimado, 0);
-      return Math.round((t + l) * 10) / 10;
-    }, [tarefasOrdenadas, leiturasOrdenadas]);
-    const isSobrecarga = tempoEstimadoTarefas > capacidadeRecomendada || tempoEstimadoTarefas > totalHorasMapeadas;
+      const p = praticasOrdenadas.reduce((acc, p2) => acc + p2.tempoEstimado, 0);
+      return Math.round((t + l + p) * 10) / 10;
+    }, [tarefasOrdenadas, leiturasOrdenadas, praticasOrdenadas]);
+    const isSobrecarga = tempoEstimadoTotal > totalHorasMapeadas;
     const cronogramaGerado = (0, import_react36.useMemo)(() => {
       const diasSemana = ["Segunda", "Terca", "Quarta", "Quinta", "Sexta", "Sabado", "Domingo"];
       const turnosDisponiveis = [];
       diasSemana.forEach((dia) => {
-        if (turnos[dia].manha > 0) turnosDisponiveis.push({ dia, turno: "Manh\xE3", horas: turnos[dia].manha, key: `${dia}-manha` });
-        if (turnos[dia].tarde > 0) turnosDisponiveis.push({ dia, turno: "Tarde", horas: turnos[dia].tarde, key: `${dia}-tarde` });
-        if (turnos[dia].noite > 0) turnosDisponiveis.push({ dia, turno: "Noite", horas: turnos[dia].noite, key: `${dia}-noite` });
+        if (turnos[dia].manha > 0) turnosDisponiveis.push({ dia, turno: "manha", horas: turnos[dia].manha, key: `${dia}-manha` });
+        if (turnos[dia].tarde > 0) turnosDisponiveis.push({ dia, turno: "tarde", horas: turnos[dia].tarde, key: `${dia}-tarde` });
+        if (turnos[dia].noite > 0) turnosDisponiveis.push({ dia, turno: "noite", horas: turnos[dia].noite, key: `${dia}-noite` });
       });
-      const pipeline = [...tarefasOrdenadas, ...leiturasOrdenadas].sort((a2, b) => {
-        const scoreA = a2.tipoItem === "Tarefa" ? a2.score : a2.scoreWeight * 4;
-        const scoreB = b.tipoItem === "Tarefa" ? b.score : b.scoreWeight * 4;
-        return scoreB - scoreA;
-      });
+      const pipeline = [...tarefasOrdenadas, ...leiturasOrdenadas, ...praticasOrdenadas].sort((a2, b) => b.score - a2.score).map((item) => ({ ...item, horasRestantes: item.tempoEstimado, parteIdx: 0 }));
       const cronograma = {};
       turnosDisponiveis.forEach((t) => {
         cronograma[t.key] = { horasTurno: t.horas, itens: [] };
       });
-      let pipelineIndex = 0;
+      let pIdx = 0;
       turnosDisponiveis.forEach((slot) => {
-        let horasRestantes = slot.horas;
-        while (horasRestantes >= 0.5 && pipelineIndex < pipeline.length) {
-          const item = pipeline[pipelineIndex];
-          cronograma[slot.key].itens.push(item);
-          horasRestantes -= item.tempoEstimado;
-          pipelineIndex++;
+        let horasSlot = slot.horas;
+        while (horasSlot >= 0.5 && pIdx < pipeline.length) {
+          const item = pipeline[pIdx];
+          const horasFazer = Math.min(item.horasRestantes, horasSlot);
+          const horasArred = Math.floor(horasFazer * 2) / 2;
+          if (horasArred < 0.5) break;
+          const isParcial = horasArred < item.horasRestantes;
+          cronograma[slot.key].itens.push({
+            ...item,
+            horasFazer: horasArred,
+            parcial: isParcial,
+            continuacao: item.parteIdx > 0
+          });
+          horasSlot -= horasArred;
+          item.horasRestantes -= horasArred;
+          item.parteIdx += 1;
+          if (item.horasRestantes < 0.5) pIdx++;
         }
       });
-      return { cronograma, turnosDisponiveis, itensExcedentes: pipeline.slice(pipelineIndex) };
-    }, [turnos, tarefasOrdenadas, leiturasOrdenadas]);
+      const itensExcedentes = pipeline.slice(pIdx).filter((i) => i.horasRestantes > 0.1);
+      return { cronograma, turnosDisponiveis, itensExcedentes };
+    }, [turnos, tarefasOrdenadas, leiturasOrdenadas, praticasOrdenadas]);
     const metaMinima = (0, import_react36.useMemo)(() => {
       if (perfil.nivel === "Doutorado" || perfil.nivel === "Mestrado") {
         return { escrita: "Escrever 400 palavras fundamentadas", leitura: "Fichamento r\xE1pido de 1 artigo chave" };
@@ -47435,17 +47520,23 @@
     const handleAddTarefa = (e) => {
       e.preventDefault();
       if (!novaTarefa.nome.trim()) return;
-      setTarefas([...tarefas, { ...novaTarefa, id: Date.now(), concluida: false }]);
-      setNovaTarefa({ nome: "", categoria: "Escrita", urgencia: 3, importancia: 3, paginas: 1 });
+      setTarefas([...tarefas, { ...novaTarefa, id: Date.now() }]);
+      setNovaTarefa(NOVA_TAREFA_DEFAULT);
     };
     const handleAddLeitura = (e) => {
       e.preventDefault();
       if (!novaLeitura.titulo.trim()) return;
       setLeituras([...leituras, { ...novaLeitura, id: Date.now() }]);
-      setNovaLeitura({ titulo: "", paginas: 15, relevancia: "Media" });
+      setNovaLeitura(NOVA_LEITURA_DEFAULT);
+    };
+    const handleAddPratica = (e) => {
+      e.preventDefault();
+      setPraticas([...praticas, { ...novaPratica, id: Date.now() }]);
+      setNovaPratica(NOVA_PRATICA_DEFAULT);
     };
     const handleRemoveTarefa = (id) => setTarefas(tarefas.filter((t) => t.id !== id));
     const handleRemoveLeitura = (id) => setLeituras(leituras.filter((l) => l.id !== id));
+    const handleRemovePratica = (id) => setPraticas(praticas.filter((p) => p.id !== id));
     const handleDestravar = (secao) => {
       setDestravarTema(secao);
       const dicas = {
@@ -47454,7 +47545,7 @@
         "Referencial": "Escreva 3 ideias soltas de autores que leu recentemente. Em seguida, crie uma frase sua que conecte as tr\xEAs opini\xF5es.",
         "Conclus\xE3o": "Retome o seu objetivo geral. Escreva: 'Esta pesquisa alcan\xE7ou seu objetivo porque...'. Seja direto e depois liste as limita\xE7\xF5es."
       };
-      setDestravarDica(dicas[secao] || "Lembre-se: O primeiro rascunho tem apenas uma miss\xE3o - existir.");
+      setDestravarDica(dicas[secao] || "Lembre-se: O primeiro rascunho tem apenas uma miss\xE3o \u2014 existir.");
     };
     const handleReset = () => {
       if (confirm("Deseja redefinir o organizador e come\xE7ar do zero?")) {
@@ -47473,11 +47564,12 @@ Foco: ${perfil.objetivo} (${perfil.nivel})
         ["manha", "tarde", "noite"].forEach((turno) => {
           const ct = cronogramaGerado.cronograma[`${dia}-${turno}`];
           if (ct && ct.horasTurno > 0) {
-            const itensNomes = ct.itens.length > 0 ? ct.itens.map((i) => i.nome).join(" + ") : "Estudo Aut\xF4nomo";
+            const itensNomes = ct.itens.length > 0 ? ct.itens.map((i) => gerarNomeAcao(i, i.horasFazer)).join(" + ") : "Estudo Aut\xF4nomo";
             slots.push(`${turno.toUpperCase()} (${ct.horasTurno}h): ${itensNomes}`);
           }
         });
-        if (slots.length > 0) texto += `- ${dia === "Terca" ? "Ter\xE7a" : dia === "Sabado" ? "S\xE1bado" : dia}:
+        const diaNome = dia === "Terca" ? "Ter\xE7a" : dia === "Sabado" ? "S\xE1bado" : dia;
+        if (slots.length > 0) texto += `- ${diaNome}:
   ${slots.join("\n  ")}
 `;
       });
@@ -47509,13 +47601,17 @@ Foco: ${perfil.objetivo} (${perfil.nivel})
       { name: "Lazer", value: Number(horas.lazer), color: "#64748B" },
       { name: "Dispon\xEDvel", value: horasLivres, color: "#22C55E" }
     ].filter((item) => item.value > 0);
+    const categoriasProd = ["Escrita", "Revis\xE3o", "Formata\xE7\xE3o", "Formata\xE7\xE3o de Refer\xEAncias", "An\xE1lise de Dados", "Outro"];
+    const tiposPratica = ["Entrevista", "An\xE1lise Documental", "Observa\xE7\xE3o", "Sa\xEDda de Campo", "Outro"];
+    const labelDia = (dia) => dia === "Terca" ? "Ter\xE7a" : dia === "Sabado" ? "S\xE1bado" : dia;
+    const labelTurno = (t) => t === "manha" ? "Manh\xE3" : t === "tarde" ? "Tarde" : "Noite";
     return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "w-full", children: [
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("header", { className: "flex items-center justify-between border-b border-slate-200/60 pb-4 mb-6", children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-2", children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "p-2 bg-indigo-50 text-indigo-600 rounded-lg", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Compass, { className: "w-6 h-6" }) }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", { className: "text-lg font-bold text-slate-900 tracking-tight", children: "Organizador Acad\xEAmico" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-xs text-slate-500", children: "Desenhe um plano de estudos blindado contra a realidade" })
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-xs text-slate-500", children: "Desenhe um plano de estudos realista" })
           ] })
         ] }),
         step > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: handleReset, className: "text-xs text-slate-400 hover:text-red-500 flex items-center gap-1 transition-colors", children: [
@@ -47567,7 +47663,7 @@ Foco: ${perfil.objetivo} (${perfil.nivel})
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { className: "block text-sm font-semibold text-slate-700 mb-2", children: "Foco da Produ\xE7\xE3o:" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-3", children: ["TCC", "Artigo", "Disserta\xE7\xE3o", "Tese", "Projeto", "Defesa"].map((obj) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-3", children: ["TCC", "Artigo", "Disserta\xE7\xE3o", "Tese", "Projeto", "Defesa", "Trabalho para Disciplina"].map((obj) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
               "button",
               {
                 type: "button",
@@ -47670,10 +47766,26 @@ Foco: ${perfil.objetivo} (${perfil.nivel})
       ] }),
       step === 3 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-white border border-slate-100 rounded-2xl p-6 md:p-8 shadow-sm", children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { className: "text-xl font-bold text-slate-900 mb-2", children: "3. Mapa de Disponibilidade Di\xE1ria" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", { className: "text-sm text-slate-500 mb-6", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", { className: "text-sm text-slate-500 mb-1", children: [
           "Em quais momentos voc\xEA ",
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "realmente" }),
           " consegue sentar para estudar? Mesmo 1 hora focada j\xE1 faz a diferen\xE7a!"
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: `mb-5 p-3 rounded-lg text-xs font-semibold flex items-center gap-2 ${excedeLimite ? "bg-red-50 text-red-700 border border-red-200" : "bg-indigo-50 text-indigo-700 border border-indigo-100"}`, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BatteryCharging, { className: "w-4 h-4 flex-shrink-0" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
+            "Limite seguro: ",
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("strong", { children: [
+              capacidadeRecomendada,
+              "h/semana"
+            ] }),
+            " \u2014 Alocado: ",
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("strong", { children: [
+              totalHorasMapeadas,
+              "h"
+            ] }),
+            excedeLimite ? " \u2014 Voc\xEA ultrapassou o limite! Reduza algum turno." : ` \u2014 Dispon\xEDvel para alocar: ${capacidadeRecomendada - totalHorasMapeadas}h`
+          ] })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "overflow-x-auto rounded-xl border border-slate-100 mb-6", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("table", { className: "w-full text-left text-sm", children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("thead", { className: "bg-slate-50 text-xs text-slate-500 uppercase", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("tr", { children: [
@@ -47683,31 +47795,28 @@ Foco: ${perfil.objetivo} (${perfil.nivel})
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)("th", { className: "p-3 text-center", children: "Noite" })
           ] }) }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("tbody", { className: "divide-y divide-slate-100", children: Object.keys(turnos).map((dia) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("tr", { className: "hover:bg-slate-50/40", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("td", { className: "p-3 font-semibold text-slate-700", children: dia === "Terca" ? "Ter\xE7a" : dia === "Sabado" ? "S\xE1bado" : dia }),
-            ["manha", "tarde", "noite"].map((turno) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("td", { className: "p-2 text-center", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-              "select",
-              {
-                value: turnos[dia][turno],
-                onChange: (e) => setTurnos({ ...turnos, [dia]: { ...turnos[dia], [turno]: Number(e.target.value) } }),
-                className: `w-full max-w-[80px] mx-auto text-xs font-semibold p-2 border rounded-lg outline-none cursor-pointer ${turnos[dia][turno] > 0 ? "bg-indigo-50 border-indigo-300 text-indigo-700" : "bg-white border-slate-200 text-slate-400"}`,
-                children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "0", children: "- Indisp. -" }),
-                  [1, 2, 3, 4, 5].map((h) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("option", { value: h, children: [
-                    h,
-                    " h"
-                  ] }, h))
-                ]
-              }
-            ) }, turno))
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("td", { className: "p-3 font-semibold text-slate-700", children: labelDia(dia) }),
+            ["manha", "tarde", "noite"].map((turno) => {
+              const horasDisponiveis = capacidadeRecomendada - totalHorasMapeadas + turnos[dia][turno];
+              const maxOpcao = Math.min(5, Math.max(turnos[dia][turno], horasDisponiveis));
+              return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("td", { className: "p-2 text-center", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+                "select",
+                {
+                  value: turnos[dia][turno],
+                  onChange: (e) => handleSetTurno(dia, turno, e.target.value),
+                  className: `w-full max-w-[80px] mx-auto text-xs font-semibold p-2 border rounded-lg outline-none cursor-pointer ${turnos[dia][turno] > 0 ? "bg-indigo-50 border-indigo-300 text-indigo-700" : "bg-white border-slate-200 text-slate-400"}`,
+                  children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "0", children: "- Indisp. -" }),
+                    [1, 2, 3, 4, 5].filter((h) => h <= maxOpcao).map((h) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("option", { value: h, children: [
+                      h,
+                      " h"
+                    ] }, h))
+                  ]
+                }
+              ) }, turno);
+            })
           ] }, dia)) })
         ] }) }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex justify-between items-center bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 text-sm", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-indigo-900", children: "Total de horas alocadas:" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "text-lg font-black text-indigo-600", children: [
-            totalHorasMapeadas,
-            "h na semana"
-          ] })
-        ] }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex justify-between mt-8 pt-4 border-t", children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: () => setStep(2), className: "px-5 py-2.5 text-sm text-slate-500 hover:bg-slate-50 rounded-xl flex items-center gap-2", children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ArrowLeft, { className: "w-4 h-4" }),
@@ -47722,34 +47831,41 @@ Foco: ${perfil.objetivo} (${perfil.nivel})
       step === 4 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "space-y-8", children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-xl shadow-sm", children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h4", { className: "font-bold text-amber-900 text-sm", children: "Incentivo do Orientador Digital:" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-amber-800 text-xs mt-1", children: "Seja realista. O m\xEDnimo bem feito \xE9 muito melhor do que o perfeito que nunca sai do papel." })
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-amber-800 text-xs mt-1", children: "Seja realista. O m\xEDnimo bem feito \xE9 muito melhor do que o perfeito que nunca sai do papel. O sistema estima automaticamente o tempo necess\xE1rio para cada tarefa." })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-white border border-slate-100 rounded-2xl p-6 shadow-sm", children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", { className: "text-lg font-bold flex items-center gap-2 mb-4", children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ListTodo, { className: "w-5 h-5 text-indigo-600" }),
-            " A. Suas Tarefas de Produ\xE7\xE3o"
+            " A. Tarefas de Produ\xE7\xE3o"
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", { onSubmit: handleAddTarefa, className: "bg-slate-50 border border-slate-100 rounded-xl p-4 mb-4 grid grid-cols-1 md:grid-cols-12 gap-3 items-end", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "md:col-span-4", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1", children: "O que precisa ser feito?" }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", { type: "text", value: novaTarefa.nome, onChange: (e) => setNovaTarefa({ ...novaTarefa, nome: e.target.value }), className: "w-full text-sm p-2 border rounded-md", placeholder: "Ex: Ajustar introdu\xE7\xE3o" })
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "md:col-span-3", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1", children: "Categoria" }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("select", { value: novaTarefa.categoria, onChange: (e) => setNovaTarefa({ ...novaTarefa, categoria: e.target.value, paginas: 1 }), className: "w-full text-sm p-2 border rounded-md", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { children: "Escrita" }),
-                Object.keys(TASK_TIME_MAP).map((c2) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { children: c2 }, c2))
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", { onSubmit: handleAddTarefa, className: "bg-slate-50 border border-slate-100 rounded-xl p-4 mb-4 space-y-3", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "grid grid-cols-1 md:grid-cols-12 gap-3 items-end", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "md:col-span-5", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1", children: "O que precisa ser feito?" }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", { type: "text", value: novaTarefa.nome, onChange: (e) => setNovaTarefa({ ...novaTarefa, nome: e.target.value }), className: "w-full text-sm p-2 border rounded-md", placeholder: "Ex: Introdu\xE7\xE3o do cap\xEDtulo 2" })
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "md:col-span-4", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1", children: "Categoria" }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", { value: novaTarefa.categoria, onChange: (e) => setNovaTarefa({ ...novaTarefa, categoria: e.target.value, paginas: 1 }), className: "w-full text-sm p-2 border rounded-md", children: categoriasProd.map((c2) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { children: c2 }, c2)) })
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "md:col-span-3", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1", children: "Urg\xEAncia (1-5)" }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", { value: novaTarefa.urgencia, onChange: (e) => setNovaTarefa({ ...novaTarefa, urgencia: e.target.value }), className: "w-full text-sm p-2 border rounded-md", children: [1, 2, 3, 4, 5].map((v) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { children: v }, v)) })
               ] })
             ] }),
-            novaTarefa.categoria === "Escrita" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "md:col-span-2", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1", children: "N\xBA de P\xE1ginas" }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", { type: "number", min: "1", value: novaTarefa.paginas, onChange: (e) => setNovaTarefa({ ...novaTarefa, paginas: Number(e.target.value) }), className: "w-full text-sm p-2 border rounded-md" })
+            CATEGORIAS_POR_PAGINA.includes(novaTarefa.categoria) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-3 bg-indigo-50 border border-indigo-100 rounded-lg p-3", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { className: "text-xs font-bold text-indigo-700 whitespace-nowrap", children: "N\xBA de p\xE1ginas:" }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", { type: "number", min: "1", value: novaTarefa.paginas, onChange: (e) => setNovaTarefa({ ...novaTarefa, paginas: Number(e.target.value) }), className: "w-24 text-sm p-1.5 border rounded-md" }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "text-xs text-indigo-600 font-semibold", children: [
+                "\u2192 Tempo estimado: ",
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("strong", { children: [
+                  "~",
+                  calcTempoTarefa(novaTarefa),
+                  "h"
+                ] })
+              ] })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: novaTarefa.categoria === "Escrita" ? "md:col-span-1" : "md:col-span-3", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1", children: "Urg\xEAncia (1-5)" }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", { value: novaTarefa.urgencia, onChange: (e) => setNovaTarefa({ ...novaTarefa, urgencia: e.target.value }), className: "w-full text-sm p-2 border rounded-md", children: [1, 2, 3, 4, 5].map((v) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { children: v }, v)) })
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "md:col-span-2", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { type: "submit", className: "w-full bg-indigo-600 text-white font-bold text-sm p-2 rounded-md hover:bg-indigo-700", children: "Adicionar" }) })
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "flex justify-end", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { type: "submit", className: "bg-indigo-600 text-white font-bold text-sm px-4 py-2 rounded-md hover:bg-indigo-700", children: "Adicionar Tarefa" }) })
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "space-y-2", children: [
             tarefas.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-xs text-slate-400 italic text-center p-4", children: "Nenhuma tarefa. Adicione acima." }),
@@ -47757,7 +47873,7 @@ Foco: ${perfil.objetivo} (${perfil.nivel})
               /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
                 /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-[10px] font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded mr-2", children: t.categoria }),
                 /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-sm font-semibold", children: t.nome }),
-                t.categoria === "Escrita" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "text-[10px] text-slate-400 ml-2", children: [
+                CATEGORIAS_POR_PAGINA.includes(t.categoria) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "text-[10px] text-slate-400 ml-2", children: [
                   "(",
                   t.paginas || 1,
                   " p\xE1g.)"
@@ -47767,7 +47883,7 @@ Foco: ${perfil.objetivo} (${perfil.nivel})
                 /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded", children: [
                   "~",
                   calcTempoTarefa(t),
-                  "h estimadas"
+                  "h"
                 ] }),
                 /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => handleRemoveTarefa(t.id), className: "text-slate-300 hover:text-red-500", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Trash2, { className: "w-4 h-4" }) })
               ] })
@@ -47777,12 +47893,12 @@ Foco: ${perfil.objetivo} (${perfil.nivel})
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-white border border-slate-100 rounded-2xl p-6 shadow-sm", children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", { className: "text-lg font-bold flex items-center gap-2 mb-4", children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BookOpen, { className: "w-5 h-5 text-indigo-600" }),
-            " B. Seus Textos e Leituras"
+            " B. Textos e Leituras"
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", { onSubmit: handleAddLeitura, className: "bg-slate-50 border border-slate-100 rounded-xl p-4 mb-4 grid grid-cols-1 md:grid-cols-12 gap-3 items-end", children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "md:col-span-5", children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1", children: "T\xEDtulo do Artigo/Livro" }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", { type: "text", value: novaLeitura.titulo, onChange: (e) => setNovaLeitura({ ...novaLeitura, titulo: e.target.value }), className: "w-full text-sm p-2 border rounded-md", placeholder: "Ex: Autor - Metodologia..." })
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", { type: "text", value: novaLeitura.titulo, onChange: (e) => setNovaLeitura({ ...novaLeitura, titulo: e.target.value }), className: "w-full text-sm p-2 border rounded-md", placeholder: "Ex: Autor \u2014 Metodologia..." })
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "md:col-span-2", children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1", children: "N\xBA P\xE1ginas" }),
@@ -47809,11 +47925,59 @@ Foco: ${perfil.objetivo} (${perfil.nivel})
                 /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded", children: [
                   "~",
                   Math.max(0.5, Math.round(l.paginas / 10 * 10) / 10),
-                  "h estimadas"
+                  "h"
                 ] }),
                 /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => handleRemoveLeitura(l.id), className: "text-slate-300 hover:text-red-500", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Trash2, { className: "w-4 h-4" }) })
               ] })
             ] }, l.id))
+          ] })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-white border border-slate-100 rounded-2xl p-6 shadow-sm", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", { className: "text-lg font-bold flex items-center gap-2 mb-4", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Microscope, { className: "w-5 h-5 text-indigo-600" }),
+            " C. Tarefas Pr\xE1ticas de Coleta de Dados"
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", { onSubmit: handleAddPratica, className: "bg-slate-50 border border-slate-100 rounded-xl p-4 mb-4 space-y-3", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "grid grid-cols-1 md:grid-cols-12 gap-3 items-end", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "md:col-span-4", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1", children: "Tipo de Atividade" }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", { value: novaPratica.tipo, onChange: (e) => setNovaPratica({ ...novaPratica, tipo: e.target.value, especificacao: "" }), className: "w-full text-sm p-2 border rounded-md", children: tiposPratica.map((t) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { children: t }, t)) })
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "md:col-span-3", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1", children: "Horas Estimadas" }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", { type: "number", min: "0.5", step: "0.5", value: novaPratica.horasEstimadas, onChange: (e) => setNovaPratica({ ...novaPratica, horasEstimadas: e.target.value }), className: "w-full text-sm p-2 border rounded-md" })
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "md:col-span-3", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1", children: "Urg\xEAncia (1-5)" }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", { value: novaPratica.urgencia, onChange: (e) => setNovaPratica({ ...novaPratica, urgencia: e.target.value }), className: "w-full text-sm p-2 border rounded-md", children: [1, 2, 3, 4, 5].map((v) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { children: v }, v)) })
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "md:col-span-2", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { type: "submit", className: "w-full bg-indigo-600 text-white font-bold text-sm p-2 rounded-md hover:bg-indigo-700", children: "Adicionar" }) })
+            ] }),
+            novaPratica.tipo === "Outro" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { className: "block text-[10px] font-bold text-slate-500 uppercase mb-1", children: "Especifique:" }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", { type: "text", value: novaPratica.especificacao, onChange: (e) => setNovaPratica({ ...novaPratica, especificacao: e.target.value }), className: "w-full text-sm p-2 border rounded-md", placeholder: "Descreva a atividade..." })
+            ] })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "space-y-2", children: [
+            praticas.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-xs text-slate-400 italic text-center p-4", children: "Nenhuma atividade pr\xE1tica cadastrada." }),
+            praticas.map((p) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex justify-between items-center bg-white border border-slate-100 p-3 rounded-lg hover:border-slate-300", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-[10px] font-bold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded mr-2", children: p.tipo }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-sm font-semibold", children: p.especificacao || p.tipo }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "text-[10px] text-slate-400 ml-2", children: [
+                  "Urg\xEAncia: ",
+                  p.urgencia
+                ] })
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-3", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded", children: [
+                  "~",
+                  p.horasEstimadas,
+                  "h"
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => handleRemovePratica(p.id), className: "text-slate-300 hover:text-red-500", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Trash2, { className: "w-4 h-4" }) })
+              ] })
+            ] }, p.id))
           ] })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex justify-between mt-8", children: [
@@ -47845,32 +48009,36 @@ Foco: ${perfil.objetivo} (${perfil.nivel})
               ] })
             ] })
           ] }),
-          isSobrecarga ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-red-50 border border-red-200 text-red-900 p-5 rounded-xl flex gap-4 items-start", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AlertTriangle, { className: "w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" }),
+          isSobrecarga ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-amber-50 border border-amber-200 text-amber-900 p-5 rounded-xl flex gap-4 items-start", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AlertTriangle, { className: "w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" }),
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "text-sm", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { className: "font-black text-red-800 text-base block mb-2", children: "Alerta de Sobrecarga!" }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", { children: [
-                "Voc\xEA registrou tarefas que exigir\xE3o ",
-                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("strong", { children: [
-                  "~",
-                  tempoEstimadoTarefas,
-                  "h"
-                ] }),
-                ", mas mapeou apenas ",
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { className: "font-black text-amber-800 text-base block mb-2", children: "Aten\xE7\xE3o: suas tarefas somam mais horas do que voc\xEA tem dispon\xEDveis!" }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", { className: "mb-3", children: [
+                "Voc\xEA tem ",
                 /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("strong", { children: [
                   totalHorasMapeadas,
                   "h"
                 ] }),
-                " dispon\xEDveis (capacidade ideal: ",
-                capacidadeRecomendada,
-                "h)."
+                " dispon\xEDveis, mas as tarefas estimam ",
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("strong", { children: [
+                  "~",
+                  tempoEstimadoTotal,
+                  "h"
+                ] }),
+                ". Confira se existe alguma tarefa que pode ser ",
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "delegada ou adiada para a pr\xF3xima semana" }),
+                "."
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-white/60 p-3 rounded-lg border border-amber-100", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { className: "text-xs font-bold text-amber-800 block mb-1", children: "Sugest\xE3o pr\xE1tica:" }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-xs leading-relaxed", children: 'Olhe para a lista e pergunte: "O que acontece se eu n\xE3o fizer isso essa semana?" As tarefas de menor urg\xEAncia podem ir para o backlog. O aplicativo j\xE1 distribui automaticamente o que couber no cronograma.' })
               ] })
             ] })
           ] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-emerald-50 border border-emerald-200 text-emerald-900 p-4 rounded-xl flex gap-3", children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CheckCircle, { className: "w-5 h-5 text-emerald-600 flex-shrink-0" }),
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "text-sm", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { className: "font-black", children: "Planeamento Sustent\xE1vel." }),
-              " A quantidade de tarefas cabe nas horas que separou. Comece a executar!"
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { className: "font-black", children: "Planejamento Sustent\xE1vel!" }),
+              " A quantidade de tarefas cabe nas horas dispon\xEDveis. Respire fundo e comece a executar."
             ] })
           ] })
         ] }),
@@ -47879,44 +48047,47 @@ Foco: ${perfil.objetivo} (${perfil.nivel})
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Calendar, { className: "w-5 h-5 text-indigo-600" }),
             " O que fazer e quando:"
           ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-xs text-slate-500 mb-6", children: "As tarefas foram distribu\xEDdas por prioridade. Quando uma tarefa ocupa mais de um turno, ela aparece dividida em partes." }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-4", children: ["Segunda", "Terca", "Quarta", "Quinta", "Sexta", "Sabado", "Domingo"].map((dia) => {
             if (turnos[dia].manha === 0 && turnos[dia].tarde === 0 && turnos[dia].noite === 0) return null;
             return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "border border-slate-200 p-4 rounded-xl shadow-sm bg-white", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h4", { className: "font-bold text-sm text-indigo-900 mb-3 border-b pb-2", children: dia === "Terca" ? "Ter\xE7a" : dia === "Sabado" ? "S\xE1bado" : dia }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h4", { className: "font-bold text-sm text-indigo-900 mb-3 border-b pb-2", children: labelDia(dia) }),
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "space-y-3", children: ["manha", "tarde", "noite"].map((turno) => {
                 if (turnos[dia][turno] === 0) return null;
                 const slot = cronogramaGerado.cronograma[`${dia}-${turno}`];
                 return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-slate-50 p-3 rounded-lg border border-slate-100", children: [
                   /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex justify-between items-center mb-2", children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-[10px] font-black uppercase text-slate-500 bg-white px-2 py-0.5 rounded border shadow-sm", children: turno === "manha" ? "Manh\xE3" : turno === "tarde" ? "Tarde" : "Noite" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-[10px] font-black uppercase text-slate-500 bg-white px-2 py-0.5 rounded border shadow-sm", children: labelTurno(turno) }),
                     /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "text-[10px] font-bold text-indigo-500", children: [
                       slot.horasTurno,
-                      "h"
+                      "h dispon\xEDveis"
                     ] })
                   ] }),
                   slot.itens.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", { className: "space-y-1.5 mt-2", children: slot.itens.map((item, idx) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { className: "text-xs font-semibold text-slate-800 flex gap-1.5 items-start", children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "text-emerald-500 mt-0.5", children: "\u25AA" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: `mt-0.5 flex-shrink-0 ${item.continuacao ? "text-amber-400" : "text-emerald-500"}`, children: "\u25AA" }),
                     /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
-                      item.nome,
-                      " ",
-                      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "font-normal text-slate-400", children: [
+                      gerarNomeAcao(item, item.horasFazer),
+                      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "font-normal text-slate-400 ml-1", children: [
                         "(~",
-                        item.tempoEstimado,
-                        "h)"
+                        item.horasFazer,
+                        "h",
+                        item.parcial ? ` de ${item.totalHoras}h` : "",
+                        ")"
                       ] })
                     ] })
-                  ] }, idx)) }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-xs text-slate-500 italic mt-2", children: "Tempo livre para Revis\xE3o ou Leituras." })
+                  ] }, idx)) }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-xs text-slate-500 italic mt-2", children: "Tempo livre \u2014 use para revis\xE3o ou leituras extras." })
                 ] }, turno);
               }) })
             ] }, dia);
           }) }),
           cronogramaGerado.itensExcedentes.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "mt-6 p-4 bg-amber-50 rounded-xl border border-amber-200", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h4", { className: "text-xs font-bold text-amber-900 uppercase mb-2", children: "Backlog (pr\xF3xima semana):" }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h4", { className: "text-xs font-bold text-amber-900 uppercase mb-2", children: "Backlog \u2014 pr\xF3xima semana:" }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-xs text-amber-800 mb-3", children: "Estas tarefas n\xE3o couberem nas horas desta semana. Guarde-as para a pr\xF3xima:" }),
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "flex flex-wrap gap-2", children: cronogramaGerado.itensExcedentes.map((i, idx) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "text-[10px] bg-white border border-amber-100 text-amber-800 px-2 py-1 rounded", children: [
-              i.nome,
+              gerarNomeAcao(i, i.horasRestantes),
               " (~",
-              i.tempoEstimado,
-              "h)"
+              i.horasRestantes,
+              "h restantes)"
             ] }, idx)) })
           ] })
         ] }),
@@ -47925,6 +48096,11 @@ Foco: ${perfil.objetivo} (${perfil.nivel})
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", { className: "text-sm font-black text-amber-400 uppercase tracking-widest mb-4 flex items-center gap-2", children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Target, { className: "w-5 h-5" }),
               " A Regra de Ouro (MVP)"
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", { className: "text-xs text-slate-300 mb-4 leading-relaxed", children: [
+              "Se imprevistos destru\xEDrem o seu planejamento, fa\xE7a apenas as ",
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Metas M\xEDnimas Vi\xE1veis" }),
+              " para a pesquisa n\xE3o morrer:"
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("ul", { className: "space-y-3 text-sm font-semibold", children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { className: "flex gap-3", children: [
@@ -48087,6 +48263,7 @@ lucide-react/dist/esm/icons/clock.js:
 lucide-react/dist/esm/icons/compass.js:
 lucide-react/dist/esm/icons/copy.js:
 lucide-react/dist/esm/icons/list-todo.js:
+lucide-react/dist/esm/icons/microscope.js:
 lucide-react/dist/esm/icons/printer.js:
 lucide-react/dist/esm/icons/refresh-cw.js:
 lucide-react/dist/esm/icons/target.js:

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Calendar, Clock, BookOpen, CheckCircle, AlertTriangle, ArrowRight, ArrowLeft,
-  Trash2, RefreshCw, Compass, ListTodo, Check, Copy, Printer, Target, BatteryCharging
+  Trash2, RefreshCw, Compass, ListTodo, Check, Copy, Printer, Target, BatteryCharging, Microscope
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
@@ -15,17 +15,47 @@ const safeSet = (key, value) => {
   catch (e) {}
 };
 
-const TASK_TIME_MAP = {
-  'Revisão': 1.5,
-  'Formatação': 1.0,
-  'Coleta de Dados': 3.0,
-  'Análise de Dados': 3.5,
-  'Outro': 1.0
+// Categorias com cálculo por página
+const CATEGORIAS_POR_PAGINA = ['Escrita', 'Revisão', 'Formatação', 'Formatação de Referências', 'Análise de Dados'];
+
+const calcTempoTarefa = (t) => {
+  const pag = Math.max(1, Number(t.paginas || 1));
+  switch (t.categoria) {
+    case 'Escrita':                    return Math.round(pag * 10) / 10;          // 1h/pág
+    case 'Revisão':                    return Math.round(pag * 0.5 * 10) / 10;    // 30min/pág
+    case 'Formatação':                 return Math.max(0.5, Math.round((pag / 6) * 10) / 10); // 10min/pág
+    case 'Formatação de Referências':  return Math.round(pag * 10) / 10;          // 1h/pág
+    case 'Análise de Dados':           return Math.round(pag * 2 * 10) / 10;      // 2h/pág
+    default:                           return Number(t.horasEstimadas || 1);
+  }
 };
 
-const calcTempoTarefa = (tarefa) => {
-  if (tarefa.categoria === 'Escrita') return Math.max(0.5, Number(tarefa.paginas || 1));
-  return TASK_TIME_MAP[tarefa.categoria] || 1.0;
+// Gera nome de exibição com contexto de ação e páginas
+const gerarNomeAcao = (item, horasFazer) => {
+  const pag = Math.max(1, Number(item.paginas || 1));
+  const totalH = item.totalHoras || calcTempoTarefa(item);
+  const hPorPag = totalH / pag;
+  const pagFazer = horasFazer < totalH
+    ? Math.max(1, Math.round(horasFazer / hPorPag))
+    : pag;
+  const cont = item.continuacao ? '(cont.) ' : '';
+
+  if (item.tipoItem === 'Leitura') {
+    const pgLeit = Math.max(1, Math.round((horasFazer / (totalH / pag))));
+    return `${cont}Ler ${horasFazer < totalH ? pgLeit + ' pág. de' : ''} ${item.tituloOriginal || item.nome.replace('Ler: ', '')}`;
+  }
+  if (item.tipoItem === 'Pratica') {
+    const desc = item.especificacao ? `${item.nome}: ${item.especificacao}` : item.nome;
+    return `${cont}${desc}`;
+  }
+  switch (item.categoria) {
+    case 'Escrita':                   return `${cont}Escrever ${pagFazer} pág.: ${item.nome}`;
+    case 'Revisão':                   return `${cont}Revisar ${pagFazer} pág.: ${item.nome}`;
+    case 'Formatação':                return `${cont}Formatar ${pagFazer} pág.: ${item.nome}`;
+    case 'Formatação de Referências': return `${cont}Formatar referências (${pagFazer} pág.): ${item.nome}`;
+    case 'Análise de Dados':          return `${cont}Analisar ${pagFazer} pág.: ${item.nome}`;
+    default:                          return `${cont}${item.nome}`;
+  }
 };
 
 function App() {
@@ -34,17 +64,24 @@ function App() {
   const [horas, setHoras] = useState(() => safeGet('acad_horas', { sono: 56, trabalho: 40, deslocamento: 10, familia: 15, compromissos: 10, lazer: 15 }));
   const [turnos, setTurnos] = useState(() => safeGet('acad_turnos', {
     Segunda: { manha: 0, tarde: 0, noite: 2 },
-    Terca: { manha: 0, tarde: 0, noite: 0 },
-    Quarta: { manha: 0, tarde: 0, noite: 2 },
-    Quinta: { manha: 0, tarde: 0, noite: 0 },
-    Sexta: { manha: 0, tarde: 0, noite: 0 },
-    Sabado: { manha: 3, tarde: 0, noite: 0 },
+    Terca:   { manha: 0, tarde: 0, noite: 0 },
+    Quarta:  { manha: 0, tarde: 0, noite: 2 },
+    Quinta:  { manha: 0, tarde: 0, noite: 0 },
+    Sexta:   { manha: 0, tarde: 0, noite: 0 },
+    Sabado:  { manha: 3, tarde: 0, noite: 0 },
     Domingo: { manha: 0, tarde: 2, noite: 0 }
   }));
   const [tarefas, setTarefas] = useState(() => safeGet('acad_tarefas', []));
   const [leituras, setLeituras] = useState(() => safeGet('acad_leituras', []));
-  const [novaTarefa, setNovaTarefa] = useState({ nome: '', categoria: 'Escrita', urgencia: 3, importancia: 3, paginas: 1 });
-  const [novaLeitura, setNovaLeitura] = useState({ titulo: '', paginas: 15, relevancia: 'Media' });
+  const [praticas, setPraticas] = useState(() => safeGet('acad_praticas', []));
+
+  const NOVA_TAREFA_DEFAULT = { nome: '', categoria: 'Escrita', urgencia: 3, importancia: 3, paginas: 1 };
+  const NOVA_LEITURA_DEFAULT = { titulo: '', paginas: 15, relevancia: 'Media' };
+  const NOVA_PRATICA_DEFAULT = { tipo: 'Entrevista', especificacao: '', horasEstimadas: 1, urgencia: 3 };
+
+  const [novaTarefa, setNovaTarefa] = useState(NOVA_TAREFA_DEFAULT);
+  const [novaLeitura, setNovaLeitura] = useState(NOVA_LEITURA_DEFAULT);
+  const [novaPratica, setNovaPratica] = useState(NOVA_PRATICA_DEFAULT);
   const [destravarTema, setDestravarTema] = useState('');
   const [destravarDica, setDestravarDica] = useState('');
   const [copiado, setCopiado] = useState(false);
@@ -54,6 +91,7 @@ function App() {
   useEffect(() => safeSet('acad_turnos', turnos), [turnos]);
   useEffect(() => safeSet('acad_tarefas', tarefas), [tarefas]);
   useEffect(() => safeSet('acad_leituras', leituras), [leituras]);
+  useEffect(() => safeSet('acad_praticas', praticas), [praticas]);
 
   const totalOcupado = useMemo(() =>
     horas.sono + Number(horas.trabalho) + Number(horas.deslocamento) + Number(horas.familia) + Number(horas.compromissos) + Number(horas.lazer),
@@ -63,67 +101,118 @@ function App() {
     const cap = Math.round(horasLivres * 0.3);
     return cap > 25 ? 25 : (cap < 2 ? 2 : cap);
   }, [horasLivres]);
+
   const totalHorasMapeadas = useMemo(() => {
     let total = 0;
     Object.values(turnos).forEach(d => { total += (d.manha + d.tarde + d.noite); });
     return total;
   }, [turnos]);
+
+  const excedeLimite = totalHorasMapeadas > capacidadeRecomendada;
+
+  // Atualiza turno garantindo que o total não ultrapasse capacidadeRecomendada
+  const handleSetTurno = (dia, turno, valor) => {
+    const novoTurnos = { ...turnos, [dia]: { ...turnos[dia], [turno]: Number(valor) } };
+    const novoTotal = Object.values(novoTurnos).reduce((acc, d) => acc + d.manha + d.tarde + d.noite, 0);
+    if (novoTotal > capacidadeRecomendada) return; // bloqueia
+    setTurnos(novoTurnos);
+  };
+
   const tarefasOrdenadas = useMemo(() =>
     [...tarefas].map(t => ({
       ...t,
-      score: (Number(t.importancia) * 1.5) + (Number(t.urgencia) * 1.2),
+      score: (Number(t.importancia) * 1.5) + (Number(t.urgencia) * 2),
       tempoEstimado: calcTempoTarefa(t),
+      totalHoras: calcTempoTarefa(t),
       tipoItem: 'Tarefa'
     })).sort((a, b) => b.score - a.score),
     [tarefas]);
+
   const leiturasOrdenadas = useMemo(() => {
     const relevanceWeight = { Alta: 3, Media: 2, Baixa: 1 };
     return [...leituras].map(l => ({
       ...l,
       nome: `Ler: ${l.titulo}`,
+      tituloOriginal: l.titulo,
       categoria: 'Leitura',
       tempoEstimado: Math.max(0.5, Math.round((l.paginas / 10) * 10) / 10),
+      totalHoras: Math.max(0.5, Math.round((l.paginas / 10) * 10) / 10),
       tipoItem: 'Leitura',
-      scoreWeight: relevanceWeight[l.relevancia]
-    })).sort((a, b) => {
-      if (b.scoreWeight !== a.scoreWeight) return b.scoreWeight - a.scoreWeight;
-      return a.paginas - b.paginas;
-    });
+      score: relevanceWeight[l.relevancia] * 4,
+      paginas: l.paginas,
+    })).sort((a, b) => b.score - a.score);
   }, [leituras]);
-  const tempoEstimadoTarefas = useMemo(() => {
+
+  const praticasOrdenadas = useMemo(() =>
+    [...praticas].map(p => ({
+      ...p,
+      nome: p.tipo,
+      tempoEstimado: Number(p.horasEstimadas || 1),
+      totalHoras: Number(p.horasEstimadas || 1),
+      score: Number(p.urgencia) * 2,
+      tipoItem: 'Pratica',
+    })).sort((a, b) => b.score - a.score),
+    [praticas]);
+
+  const tempoEstimadoTotal = useMemo(() => {
     const t = tarefasOrdenadas.reduce((acc, t) => acc + t.tempoEstimado, 0);
     const l = leiturasOrdenadas.reduce((acc, l) => acc + l.tempoEstimado, 0);
-    return Math.round((t + l) * 10) / 10;
-  }, [tarefasOrdenadas, leiturasOrdenadas]);
-  const isSobrecarga = tempoEstimadoTarefas > capacidadeRecomendada || tempoEstimadoTarefas > totalHorasMapeadas;
+    const p = praticasOrdenadas.reduce((acc, p) => acc + p.tempoEstimado, 0);
+    return Math.round((t + l + p) * 10) / 10;
+  }, [tarefasOrdenadas, leiturasOrdenadas, praticasOrdenadas]);
 
+  const isSobrecarga = tempoEstimadoTotal > totalHorasMapeadas;
+
+  // Algoritmo de cronograma com quebra de tarefas em partes
   const cronogramaGerado = useMemo(() => {
     const diasSemana = ['Segunda', 'Terca', 'Quarta', 'Quinta', 'Sexta', 'Sabado', 'Domingo'];
     const turnosDisponiveis = [];
     diasSemana.forEach(dia => {
-      if (turnos[dia].manha > 0) turnosDisponiveis.push({ dia, turno: 'Manhã', horas: turnos[dia].manha, key: `${dia}-manha` });
-      if (turnos[dia].tarde > 0) turnosDisponiveis.push({ dia, turno: 'Tarde', horas: turnos[dia].tarde, key: `${dia}-tarde` });
-      if (turnos[dia].noite > 0) turnosDisponiveis.push({ dia, turno: 'Noite', horas: turnos[dia].noite, key: `${dia}-noite` });
+      if (turnos[dia].manha > 0) turnosDisponiveis.push({ dia, turno: 'manha', horas: turnos[dia].manha, key: `${dia}-manha` });
+      if (turnos[dia].tarde > 0) turnosDisponiveis.push({ dia, turno: 'tarde', horas: turnos[dia].tarde, key: `${dia}-tarde` });
+      if (turnos[dia].noite > 0) turnosDisponiveis.push({ dia, turno: 'noite', horas: turnos[dia].noite, key: `${dia}-noite` });
     });
-    const pipeline = [...tarefasOrdenadas, ...leiturasOrdenadas].sort((a, b) => {
-      const scoreA = a.tipoItem === 'Tarefa' ? a.score : (a.scoreWeight * 4);
-      const scoreB = b.tipoItem === 'Tarefa' ? b.score : (b.scoreWeight * 4);
-      return scoreB - scoreA;
-    });
+
+    // Pipeline unificado ordenado por score (urgência + importância)
+    const pipeline = [...tarefasOrdenadas, ...leiturasOrdenadas, ...praticasOrdenadas]
+      .sort((a, b) => b.score - a.score)
+      .map(item => ({ ...item, horasRestantes: item.tempoEstimado, parteIdx: 0 }));
+
     const cronograma = {};
     turnosDisponiveis.forEach(t => { cronograma[t.key] = { horasTurno: t.horas, itens: [] }; });
-    let pipelineIndex = 0;
+
+    let pIdx = 0;
+
     turnosDisponiveis.forEach(slot => {
-      let horasRestantes = slot.horas;
-      while (horasRestantes >= 0.5 && pipelineIndex < pipeline.length) {
-        const item = pipeline[pipelineIndex];
-        cronograma[slot.key].itens.push(item);
-        horasRestantes -= item.tempoEstimado;
-        pipelineIndex++;
+      let horasSlot = slot.horas;
+
+      while (horasSlot >= 0.5 && pIdx < pipeline.length) {
+        const item = pipeline[pIdx];
+        const horasFazer = Math.min(item.horasRestantes, horasSlot);
+        const horasArred = Math.floor(horasFazer * 2) / 2; // arredonda para 0.5h
+
+        if (horasArred < 0.5) break;
+
+        const isParcial = horasArred < item.horasRestantes;
+
+        cronograma[slot.key].itens.push({
+          ...item,
+          horasFazer: horasArred,
+          parcial: isParcial,
+          continuacao: item.parteIdx > 0,
+        });
+
+        horasSlot -= horasArred;
+        item.horasRestantes -= horasArred;
+        item.parteIdx += 1;
+
+        if (item.horasRestantes < 0.5) pIdx++;
       }
     });
-    return { cronograma, turnosDisponiveis, itensExcedentes: pipeline.slice(pipelineIndex) };
-  }, [turnos, tarefasOrdenadas, leiturasOrdenadas]);
+
+    const itensExcedentes = pipeline.slice(pIdx).filter(i => i.horasRestantes > 0.1);
+    return { cronograma, turnosDisponiveis, itensExcedentes };
+  }, [turnos, tarefasOrdenadas, leiturasOrdenadas, praticasOrdenadas]);
 
   const metaMinima = useMemo(() => {
     if (perfil.nivel === 'Doutorado' || perfil.nivel === 'Mestrado') {
@@ -135,17 +224,24 @@ function App() {
   const handleAddTarefa = (e) => {
     e.preventDefault();
     if (!novaTarefa.nome.trim()) return;
-    setTarefas([...tarefas, { ...novaTarefa, id: Date.now(), concluida: false }]);
-    setNovaTarefa({ nome: '', categoria: 'Escrita', urgencia: 3, importancia: 3, paginas: 1 });
+    setTarefas([...tarefas, { ...novaTarefa, id: Date.now() }]);
+    setNovaTarefa(NOVA_TAREFA_DEFAULT);
   };
   const handleAddLeitura = (e) => {
     e.preventDefault();
     if (!novaLeitura.titulo.trim()) return;
     setLeituras([...leituras, { ...novaLeitura, id: Date.now() }]);
-    setNovaLeitura({ titulo: '', paginas: 15, relevancia: 'Media' });
+    setNovaLeitura(NOVA_LEITURA_DEFAULT);
+  };
+  const handleAddPratica = (e) => {
+    e.preventDefault();
+    setPraticas([...praticas, { ...novaPratica, id: Date.now() }]);
+    setNovaPratica(NOVA_PRATICA_DEFAULT);
   };
   const handleRemoveTarefa = (id) => setTarefas(tarefas.filter(t => t.id !== id));
   const handleRemoveLeitura = (id) => setLeituras(leituras.filter(l => l.id !== id));
+  const handleRemovePratica = (id) => setPraticas(praticas.filter(p => p.id !== id));
+
   const handleDestravar = (secao) => {
     setDestravarTema(secao);
     const dicas = {
@@ -154,13 +250,15 @@ function App() {
       'Referencial': "Escreva 3 ideias soltas de autores que leu recentemente. Em seguida, crie uma frase sua que conecte as três opiniões.",
       'Conclusão': "Retome o seu objetivo geral. Escreva: 'Esta pesquisa alcançou seu objetivo porque...'. Seja direto e depois liste as limitações."
     };
-    setDestravarDica(dicas[secao] || "Lembre-se: O primeiro rascunho tem apenas uma missão - existir.");
+    setDestravarDica(dicas[secao] || "Lembre-se: O primeiro rascunho tem apenas uma missão — existir.");
   };
+
   const handleReset = () => {
     if (confirm("Deseja redefinir o organizador e começar do zero?")) {
       localStorage.clear(); window.location.reload();
     }
   };
+
   const handleCopyPlan = () => {
     let texto = `*MEU PLANO ACADÊMICO SEMANAL*\nFoco: ${perfil.objetivo} (${perfil.nivel})\n\n*CRONOGRAMA:*\n`;
     ['Segunda','Terca','Quarta','Quinta','Sexta','Sabado','Domingo'].forEach(dia => {
@@ -168,11 +266,14 @@ function App() {
       ['manha','tarde','noite'].forEach(turno => {
         const ct = cronogramaGerado.cronograma[`${dia}-${turno}`];
         if (ct && ct.horasTurno > 0) {
-          const itensNomes = ct.itens.length > 0 ? ct.itens.map(i => i.nome).join(' + ') : 'Estudo Autônomo';
+          const itensNomes = ct.itens.length > 0
+            ? ct.itens.map(i => gerarNomeAcao(i, i.horasFazer)).join(' + ')
+            : 'Estudo Autônomo';
           slots.push(`${turno.toUpperCase()} (${ct.horasTurno}h): ${itensNomes}`);
         }
       });
-      if (slots.length > 0) texto += `- ${dia === 'Terca'?'Terça':dia==='Sabado'?'Sábado':dia}:\n  ${slots.join('\n  ')}\n`;
+      const diaNome = dia === 'Terca' ? 'Terça' : dia === 'Sabado' ? 'Sábado' : dia;
+      if (slots.length > 0) texto += `- ${diaNome}:\n  ${slots.join('\n  ')}\n`;
     });
     texto += `\n*META MÍNIMA:*\n- ${metaMinima.escrita}\n- ${metaMinima.leitura}`;
     const ta = document.createElement("textarea");
@@ -192,6 +293,12 @@ function App() {
     { name: 'Disponível', value: horasLivres, color: '#22C55E' }
   ].filter(item => item.value > 0);
 
+  const categoriasProd = ['Escrita', 'Revisão', 'Formatação', 'Formatação de Referências', 'Análise de Dados', 'Outro'];
+  const tiposPratica = ['Entrevista', 'Análise Documental', 'Observação', 'Saída de Campo', 'Outro'];
+
+  const labelDia = (dia) => dia === 'Terca' ? 'Terça' : dia === 'Sabado' ? 'Sábado' : dia;
+  const labelTurno = (t) => t === 'manha' ? 'Manhã' : t === 'tarde' ? 'Tarde' : 'Noite';
+
   return (
     <div className="w-full">
       <header className="flex items-center justify-between border-b border-slate-200/60 pb-4 mb-6">
@@ -199,7 +306,7 @@ function App() {
           <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><Compass className="w-6 h-6" /></div>
           <div>
             <h1 className="text-lg font-bold text-slate-900 tracking-tight">Organizador Acadêmico</h1>
-            <p className="text-xs text-slate-500">Desenhe um plano de estudos blindado contra a realidade</p>
+            <p className="text-xs text-slate-500">Desenhe um plano de estudos realista</p>
           </div>
         </div>
         {step > 0 && <button onClick={handleReset} className="text-xs text-slate-400 hover:text-red-500 flex items-center gap-1 transition-colors"><RefreshCw className="w-3.5 h-3.5" /><span>Resetar</span></button>}
@@ -249,7 +356,7 @@ function App() {
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">Foco da Produção:</label>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {['TCC', 'Artigo', 'Dissertação', 'Tese', 'Projeto', 'Defesa'].map(obj => (
+                {['TCC', 'Artigo', 'Dissertação', 'Tese', 'Projeto', 'Defesa', 'Trabalho para Disciplina'].map(obj => (
                   <button key={obj} type="button" onClick={() => setPerfil({ ...perfil, objetivo: obj })}
                     className={`py-2.5 px-3 border rounded-xl text-xs font-medium transition-all ${perfil.objetivo === obj ? 'border-indigo-600 bg-indigo-50 text-indigo-600' : 'border-slate-200 text-slate-600'}`}>{obj}</button>
                 ))}
@@ -275,12 +382,12 @@ function App() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
             <div className="space-y-5">
               {[
-                {label: "Sono (por noite)", key: "sono", min: 35, max: 70, step: 7, disp: Math.round(horas.sono/7)+"h"},
-                {label: "Trabalho / Emprego (semana)", key: "trabalho", min: 0, max: 60, step: 2, disp: horas.trabalho+"h"},
-                {label: "Deslocamento / Trânsito (semana)", key: "deslocamento", min: 0, max: 25, step: 1, disp: horas.deslocamento+"h"},
-                {label: "Família & Casa (semana)", key: "familia", min: 0, max: 40, step: 1, disp: horas.familia+"h"},
-                {label: "Compromissos Fixos (aulas, igreja)", key: "compromissos", min: 0, max: 30, step: 1, disp: horas.compromissos+"h"},
-                {label: "Lazer & Telas (Netflix, Celular)", key: "lazer", min: 0, max: 30, step: 1, disp: horas.lazer+"h"}
+                { label: "Sono (por noite)", key: "sono", min: 35, max: 70, step: 7, disp: Math.round(horas.sono/7)+"h" },
+                { label: "Trabalho / Emprego (semana)", key: "trabalho", min: 0, max: 60, step: 2, disp: horas.trabalho+"h" },
+                { label: "Deslocamento / Trânsito (semana)", key: "deslocamento", min: 0, max: 25, step: 1, disp: horas.deslocamento+"h" },
+                { label: "Família & Casa (semana)", key: "familia", min: 0, max: 40, step: 1, disp: horas.familia+"h" },
+                { label: "Compromissos Fixos (aulas, igreja)", key: "compromissos", min: 0, max: 30, step: 1, disp: horas.compromissos+"h" },
+                { label: "Lazer & Telas (Netflix, Celular)", key: "lazer", min: 0, max: 30, step: 1, disp: horas.lazer+"h" }
               ].map(campo => (
                 <div key={campo.key}>
                   <div className="flex justify-between text-xs font-semibold mb-1 text-slate-700"><span>{campo.label}</span><span className="text-indigo-600">{campo.disp}</span></div>
@@ -294,12 +401,7 @@ function App() {
               <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Balanço das 168 Horas</h4>
               <div className="w-full h-40">
                 <ResponsiveContainer>
-                  <PieChart>
-                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={40} outerRadius={60} paddingAngle={2} dataKey="value">
-                      {pieData.map((e, i) => <Cell key={i} fill={e.color} />)}
-                    </Pie>
-                    <Tooltip formatter={(val) => `${val} horas`} />
-                  </PieChart>
+                  <PieChart><Pie data={pieData} cx="50%" cy="50%" innerRadius={40} outerRadius={60} paddingAngle={2} dataKey="value">{pieData.map((e, i) => <Cell key={i} fill={e.color} />)}</Pie><Tooltip formatter={(val) => `${val} horas`} /></PieChart>
                 </ResponsiveContainer>
               </div>
               <div>
@@ -327,7 +429,13 @@ function App() {
       {step === 3 && (
         <div className="bg-white border border-slate-100 rounded-2xl p-6 md:p-8 shadow-sm">
           <h3 className="text-xl font-bold text-slate-900 mb-2">3. Mapa de Disponibilidade Diária</h3>
-          <p className="text-sm text-slate-500 mb-6">Em quais momentos você <strong>realmente</strong> consegue sentar para estudar? Mesmo 1 hora focada já faz a diferença!</p>
+          <p className="text-sm text-slate-500 mb-1">Em quais momentos você <strong>realmente</strong> consegue sentar para estudar? Mesmo 1 hora focada já faz a diferença!</p>
+          <div className={`mb-5 p-3 rounded-lg text-xs font-semibold flex items-center gap-2 ${excedeLimite ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-indigo-50 text-indigo-700 border border-indigo-100'}`}>
+            <BatteryCharging className="w-4 h-4 flex-shrink-0" />
+            <span>Limite seguro: <strong>{capacidadeRecomendada}h/semana</strong> — Alocado: <strong>{totalHorasMapeadas}h</strong>
+              {excedeLimite ? ' — Você ultrapassou o limite! Reduza algum turno.' : ` — Disponível para alocar: ${capacidadeRecomendada - totalHorasMapeadas}h`}
+            </span>
+          </div>
           <div className="overflow-x-auto rounded-xl border border-slate-100 mb-6">
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50 text-xs text-slate-500 uppercase">
@@ -336,25 +444,25 @@ function App() {
               <tbody className="divide-y divide-slate-100">
                 {Object.keys(turnos).map(dia => (
                   <tr key={dia} className="hover:bg-slate-50/40">
-                    <td className="p-3 font-semibold text-slate-700">{dia === 'Terca'?'Terça':dia==='Sabado'?'Sábado':dia}</td>
-                    {['manha','tarde','noite'].map(turno => (
-                      <td key={turno} className="p-2 text-center">
-                        <select value={turnos[dia][turno]}
-                          onChange={(e) => setTurnos({...turnos, [dia]: { ...turnos[dia], [turno]: Number(e.target.value) }})}
-                          className={`w-full max-w-[80px] mx-auto text-xs font-semibold p-2 border rounded-lg outline-none cursor-pointer ${turnos[dia][turno] > 0 ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'bg-white border-slate-200 text-slate-400'}`}>
-                          <option value="0">- Indisp. -</option>
-                          {[1,2,3,4,5].map(h => <option key={h} value={h}>{h} h</option>)}
-                        </select>
-                      </td>
-                    ))}
+                    <td className="p-3 font-semibold text-slate-700">{labelDia(dia)}</td>
+                    {['manha','tarde','noite'].map(turno => {
+                      const horasDisponiveis = capacidadeRecomendada - totalHorasMapeadas + turnos[dia][turno];
+                      const maxOpcao = Math.min(5, Math.max(turnos[dia][turno], horasDisponiveis));
+                      return (
+                        <td key={turno} className="p-2 text-center">
+                          <select value={turnos[dia][turno]}
+                            onChange={(e) => handleSetTurno(dia, turno, e.target.value)}
+                            className={`w-full max-w-[80px] mx-auto text-xs font-semibold p-2 border rounded-lg outline-none cursor-pointer ${turnos[dia][turno] > 0 ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'bg-white border-slate-200 text-slate-400'}`}>
+                            <option value="0">- Indisp. -</option>
+                            {[1,2,3,4,5].filter(h => h <= maxOpcao).map(h => <option key={h} value={h}>{h} h</option>)}
+                          </select>
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-          <div className="flex justify-between items-center bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 text-sm">
-            <span className="text-indigo-900">Total de horas alocadas:</span>
-            <span className="text-lg font-black text-indigo-600">{totalHorasMapeadas}h na semana</span>
           </div>
           <div className="flex justify-between mt-8 pt-4 border-t">
             <button onClick={() => setStep(2)} className="px-5 py-2.5 text-sm text-slate-500 hover:bg-slate-50 rounded-xl flex items-center gap-2"><ArrowLeft className="w-4 h-4"/> Voltar</button>
@@ -368,33 +476,65 @@ function App() {
         <div className="space-y-8">
           <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-xl shadow-sm">
             <h4 className="font-bold text-amber-900 text-sm">Incentivo do Orientador Digital:</h4>
-            <p className="text-amber-800 text-xs mt-1">Seja realista. O mínimo bem feito é muito melhor do que o perfeito que nunca sai do papel.</p>
+            <p className="text-amber-800 text-xs mt-1">Seja realista. O mínimo bem feito é muito melhor do que o perfeito que nunca sai do papel. O sistema estima automaticamente o tempo necessário para cada tarefa.</p>
           </div>
+
+          {/* A. Tarefas de Produção */}
           <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm">
-            <h3 className="text-lg font-bold flex items-center gap-2 mb-4"><ListTodo className="w-5 h-5 text-indigo-600"/> A. Suas Tarefas de Produção</h3>
-            <form onSubmit={handleAddTarefa} className="bg-slate-50 border border-slate-100 rounded-xl p-4 mb-4 grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-              <div className="md:col-span-4"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">O que precisa ser feito?</label><input type="text" value={novaTarefa.nome} onChange={e => setNovaTarefa({...novaTarefa, nome: e.target.value})} className="w-full text-sm p-2 border rounded-md" placeholder="Ex: Ajustar introdução" /></div>
-              <div className="md:col-span-3"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Categoria</label><select value={novaTarefa.categoria} onChange={e => setNovaTarefa({...novaTarefa, categoria: e.target.value, paginas: 1})} className="w-full text-sm p-2 border rounded-md"><option>Escrita</option>{Object.keys(TASK_TIME_MAP).map(c=><option key={c}>{c}</option>)}</select></div>
-              {novaTarefa.categoria === 'Escrita' && (
-                <div className="md:col-span-2"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nº de Páginas</label><input type="number" min="1" value={novaTarefa.paginas} onChange={e => setNovaTarefa({...novaTarefa, paginas: Number(e.target.value)})} className="w-full text-sm p-2 border rounded-md" /></div>
+            <h3 className="text-lg font-bold flex items-center gap-2 mb-4"><ListTodo className="w-5 h-5 text-indigo-600"/> A. Tarefas de Produção</h3>
+            <form onSubmit={handleAddTarefa} className="bg-slate-50 border border-slate-100 rounded-xl p-4 mb-4 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                <div className="md:col-span-5">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">O que precisa ser feito?</label>
+                  <input type="text" value={novaTarefa.nome} onChange={e => setNovaTarefa({...novaTarefa, nome: e.target.value})} className="w-full text-sm p-2 border rounded-md" placeholder="Ex: Introdução do capítulo 2" />
+                </div>
+                <div className="md:col-span-4">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Categoria</label>
+                  <select value={novaTarefa.categoria} onChange={e => setNovaTarefa({...novaTarefa, categoria: e.target.value, paginas: 1})} className="w-full text-sm p-2 border rounded-md">
+                    {categoriasProd.map(c => <option key={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div className="md:col-span-3">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Urgência (1-5)</label>
+                  <select value={novaTarefa.urgencia} onChange={e => setNovaTarefa({...novaTarefa, urgencia: e.target.value})} className="w-full text-sm p-2 border rounded-md">
+                    {[1,2,3,4,5].map(v => <option key={v}>{v}</option>)}
+                  </select>
+                </div>
+              </div>
+              {CATEGORIAS_POR_PAGINA.includes(novaTarefa.categoria) && (
+                <div className="flex items-center gap-3 bg-indigo-50 border border-indigo-100 rounded-lg p-3">
+                  <label className="text-xs font-bold text-indigo-700 whitespace-nowrap">Nº de páginas:</label>
+                  <input type="number" min="1" value={novaTarefa.paginas} onChange={e => setNovaTarefa({...novaTarefa, paginas: Number(e.target.value)})} className="w-24 text-sm p-1.5 border rounded-md" />
+                  <span className="text-xs text-indigo-600 font-semibold">→ Tempo estimado: <strong>~{calcTempoTarefa(novaTarefa)}h</strong></span>
+                </div>
               )}
-              <div className={novaTarefa.categoria === 'Escrita' ? 'md:col-span-1' : 'md:col-span-3'}><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Urgência (1-5)</label><select value={novaTarefa.urgencia} onChange={e => setNovaTarefa({...novaTarefa, urgencia: e.target.value})} className="w-full text-sm p-2 border rounded-md">{[1,2,3,4,5].map(v=><option key={v}>{v}</option>)}</select></div>
-              <div className="md:col-span-2"><button type="submit" className="w-full bg-indigo-600 text-white font-bold text-sm p-2 rounded-md hover:bg-indigo-700">Adicionar</button></div>
+              <div className="flex justify-end">
+                <button type="submit" className="bg-indigo-600 text-white font-bold text-sm px-4 py-2 rounded-md hover:bg-indigo-700">Adicionar Tarefa</button>
+              </div>
             </form>
             <div className="space-y-2">
               {tarefas.length === 0 && <p className="text-xs text-slate-400 italic text-center p-4">Nenhuma tarefa. Adicione acima.</p>}
               {tarefas.map(t => (
                 <div key={t.id} className="flex justify-between items-center bg-white border border-slate-100 p-3 rounded-lg hover:border-slate-300 transition-colors">
-                  <div><span className="text-[10px] font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded mr-2">{t.categoria}</span><span className="text-sm font-semibold">{t.nome}</span>{t.categoria === 'Escrita' && <span className="text-[10px] text-slate-400 ml-2">({t.paginas || 1} pág.)</span>}</div>
-                  <div className="flex items-center gap-3"><span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded">~{calcTempoTarefa(t)}h estimadas</span><button onClick={()=>handleRemoveTarefa(t.id)} className="text-slate-300 hover:text-red-500"><Trash2 className="w-4 h-4"/></button></div>
+                  <div>
+                    <span className="text-[10px] font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded mr-2">{t.categoria}</span>
+                    <span className="text-sm font-semibold">{t.nome}</span>
+                    {CATEGORIAS_POR_PAGINA.includes(t.categoria) && <span className="text-[10px] text-slate-400 ml-2">({t.paginas || 1} pág.)</span>}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded">~{calcTempoTarefa(t)}h</span>
+                    <button onClick={() => handleRemoveTarefa(t.id)} className="text-slate-300 hover:text-red-500"><Trash2 className="w-4 h-4"/></button>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
+
+          {/* B. Leituras */}
           <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm">
-            <h3 className="text-lg font-bold flex items-center gap-2 mb-4"><BookOpen className="w-5 h-5 text-indigo-600"/> B. Seus Textos e Leituras</h3>
+            <h3 className="text-lg font-bold flex items-center gap-2 mb-4"><BookOpen className="w-5 h-5 text-indigo-600"/> B. Textos e Leituras</h3>
             <form onSubmit={handleAddLeitura} className="bg-slate-50 border border-slate-100 rounded-xl p-4 mb-4 grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-              <div className="md:col-span-5"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Título do Artigo/Livro</label><input type="text" value={novaLeitura.titulo} onChange={e => setNovaLeitura({...novaLeitura, titulo: e.target.value})} className="w-full text-sm p-2 border rounded-md" placeholder="Ex: Autor - Metodologia..." /></div>
+              <div className="md:col-span-5"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Título do Artigo/Livro</label><input type="text" value={novaLeitura.titulo} onChange={e => setNovaLeitura({...novaLeitura, titulo: e.target.value})} className="w-full text-sm p-2 border rounded-md" placeholder="Ex: Autor — Metodologia..." /></div>
               <div className="md:col-span-2"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nº Páginas</label><input type="number" min="1" value={novaLeitura.paginas} onChange={e => setNovaLeitura({...novaLeitura, paginas: e.target.value})} className="w-full text-sm p-2 border rounded-md" /></div>
               <div className="md:col-span-3"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Relevância</label><select value={novaLeitura.relevancia} onChange={e => setNovaLeitura({...novaLeitura, relevancia: e.target.value})} className="w-full text-sm p-2 border rounded-md"><option>Alta</option><option>Media</option><option>Baixa</option></select></div>
               <div className="md:col-span-2"><button type="submit" className="w-full bg-indigo-600 text-white font-bold text-sm p-2 rounded-md hover:bg-indigo-700">Adicionar</button></div>
@@ -404,11 +544,62 @@ function App() {
               {leituras.map(l => (
                 <div key={l.id} className="flex justify-between items-center bg-white border border-slate-100 p-3 rounded-lg hover:border-slate-300">
                   <div><span className={`text-[10px] font-bold px-2 py-0.5 rounded mr-2 ${l.relevancia==='Alta'?'bg-red-50 text-red-700':l.relevancia==='Media'?'bg-amber-50 text-amber-700':'bg-slate-100 text-slate-600'}`}>{l.relevancia}</span><span className="text-sm font-semibold">{l.titulo}</span></div>
-                  <div className="flex items-center gap-3"><span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded">~{Math.max(0.5, Math.round((l.paginas/10)*10)/10)}h estimadas</span><button onClick={()=>handleRemoveLeitura(l.id)} className="text-slate-300 hover:text-red-500"><Trash2 className="w-4 h-4"/></button></div>
+                  <div className="flex items-center gap-3"><span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded">~{Math.max(0.5, Math.round((l.paginas/10)*10)/10)}h</span><button onClick={() => handleRemoveLeitura(l.id)} className="text-slate-300 hover:text-red-500"><Trash2 className="w-4 h-4"/></button></div>
                 </div>
               ))}
             </div>
           </div>
+
+          {/* C. Tarefas Práticas de Coleta de Dados */}
+          <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm">
+            <h3 className="text-lg font-bold flex items-center gap-2 mb-4"><Microscope className="w-5 h-5 text-indigo-600"/> C. Tarefas Práticas de Coleta de Dados</h3>
+            <form onSubmit={handleAddPratica} className="bg-slate-50 border border-slate-100 rounded-xl p-4 mb-4 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                <div className="md:col-span-4">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tipo de Atividade</label>
+                  <select value={novaPratica.tipo} onChange={e => setNovaPratica({...novaPratica, tipo: e.target.value, especificacao: ''})} className="w-full text-sm p-2 border rounded-md">
+                    {tiposPratica.map(t => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div className="md:col-span-3">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Horas Estimadas</label>
+                  <input type="number" min="0.5" step="0.5" value={novaPratica.horasEstimadas} onChange={e => setNovaPratica({...novaPratica, horasEstimadas: e.target.value})} className="w-full text-sm p-2 border rounded-md" />
+                </div>
+                <div className="md:col-span-3">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Urgência (1-5)</label>
+                  <select value={novaPratica.urgencia} onChange={e => setNovaPratica({...novaPratica, urgencia: e.target.value})} className="w-full text-sm p-2 border rounded-md">
+                    {[1,2,3,4,5].map(v => <option key={v}>{v}</option>)}
+                  </select>
+                </div>
+                <div className="md:col-span-2">
+                  <button type="submit" className="w-full bg-indigo-600 text-white font-bold text-sm p-2 rounded-md hover:bg-indigo-700">Adicionar</button>
+                </div>
+              </div>
+              {novaPratica.tipo === 'Outro' && (
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Especifique:</label>
+                  <input type="text" value={novaPratica.especificacao} onChange={e => setNovaPratica({...novaPratica, especificacao: e.target.value})} className="w-full text-sm p-2 border rounded-md" placeholder="Descreva a atividade..." />
+                </div>
+              )}
+            </form>
+            <div className="space-y-2">
+              {praticas.length === 0 && <p className="text-xs text-slate-400 italic text-center p-4">Nenhuma atividade prática cadastrada.</p>}
+              {praticas.map(p => (
+                <div key={p.id} className="flex justify-between items-center bg-white border border-slate-100 p-3 rounded-lg hover:border-slate-300">
+                  <div>
+                    <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded mr-2">{p.tipo}</span>
+                    <span className="text-sm font-semibold">{p.especificacao || p.tipo}</span>
+                    <span className="text-[10px] text-slate-400 ml-2">Urgência: {p.urgencia}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded">~{p.horasEstimadas}h</span>
+                    <button onClick={() => handleRemovePratica(p.id)} className="text-slate-300 hover:text-red-500"><Trash2 className="w-4 h-4"/></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="flex justify-between mt-8">
             <button onClick={() => setStep(3)} className="px-5 py-2.5 text-sm text-slate-500 hover:bg-slate-50 rounded-xl flex items-center gap-2"><ArrowLeft className="w-4 h-4"/> Voltar</button>
             <button onClick={() => setStep(5)} className="px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black tracking-wide rounded-xl shadow-lg flex items-center gap-2">GERAR MEU DIAGNÓSTICO <ArrowRight className="w-5 h-5"/></button>
@@ -424,33 +615,40 @@ function App() {
               <div><span className="text-[10px] font-black tracking-widest text-indigo-400 uppercase">Diagnóstico Final</span><h2 className="text-2xl font-extrabold text-slate-900">Seu Plano Executável</h2></div>
               <div className="flex gap-2 mt-3 md:mt-0">
                 <button onClick={handleCopyPlan} className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold flex items-center gap-1.5">{copiado?<Check className="w-3.5 h-3.5 text-emerald-600"/>:<Copy className="w-3.5 h-3.5"/>} Copiar</button>
-                <button onClick={()=>window.print()} className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold flex items-center gap-1.5"><Printer className="w-3.5 h-3.5"/> Imprimir</button>
+                <button onClick={() => window.print()} className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold flex items-center gap-1.5"><Printer className="w-3.5 h-3.5"/> Imprimir</button>
               </div>
             </div>
+
             {isSobrecarga ? (
-              <div className="bg-red-50 border border-red-200 text-red-900 p-5 rounded-xl flex gap-4 items-start">
-                <AlertTriangle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="bg-amber-50 border border-amber-200 text-amber-900 p-5 rounded-xl flex gap-4 items-start">
+                <AlertTriangle className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" />
                 <div className="text-sm">
-                  <strong className="font-black text-red-800 text-base block mb-2">Alerta de Sobrecarga!</strong>
-                  <p>Você registrou tarefas que exigirão <strong>~{tempoEstimadoTarefas}h</strong>, mas mapeou apenas <strong>{totalHorasMapeadas}h</strong> disponíveis (capacidade ideal: {capacidadeRecomendada}h).</p>
+                  <strong className="font-black text-amber-800 text-base block mb-2">Atenção: suas tarefas somam mais horas do que você tem disponíveis!</strong>
+                  <p className="mb-3">Você tem <strong>{totalHorasMapeadas}h</strong> disponíveis, mas as tarefas estimam <strong>~{tempoEstimadoTotal}h</strong>. Confira se existe alguma tarefa que pode ser <strong>delegada ou adiada para a próxima semana</strong>.</p>
+                  <div className="bg-white/60 p-3 rounded-lg border border-amber-100">
+                    <strong className="text-xs font-bold text-amber-800 block mb-1">Sugestão prática:</strong>
+                    <p className="text-xs leading-relaxed">Olhe para a lista e pergunte: "O que acontece se eu não fizer isso essa semana?" As tarefas de menor urgência podem ir para o backlog. O aplicativo já distribui automaticamente o que couber no cronograma.</p>
+                  </div>
                 </div>
               </div>
             ) : (
               <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 p-4 rounded-xl flex gap-3">
                 <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-                <div className="text-sm"><strong className="font-black">Planeamento Sustentável.</strong> A quantidade de tarefas cabe nas horas que separou. Comece a executar!</div>
+                <div className="text-sm"><strong className="font-black">Planejamento Sustentável!</strong> A quantidade de tarefas cabe nas horas disponíveis. Respire fundo e comece a executar.</div>
               </div>
             )}
           </div>
 
+          {/* CRONOGRAMA */}
           <div className="bg-white border border-slate-100 rounded-2xl p-6 md:p-8 shadow-sm">
             <h3 className="text-lg font-extrabold text-slate-900 mb-2 flex items-center gap-2"><Calendar className="w-5 h-5 text-indigo-600"/> O que fazer e quando:</h3>
+            <p className="text-xs text-slate-500 mb-6">As tarefas foram distribuídas por prioridade. Quando uma tarefa ocupa mais de um turno, ela aparece dividida em partes.</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {['Segunda','Terca','Quarta','Quinta','Sexta','Sabado','Domingo'].map(dia => {
                 if (turnos[dia].manha===0 && turnos[dia].tarde===0 && turnos[dia].noite===0) return null;
                 return (
                   <div key={dia} className="border border-slate-200 p-4 rounded-xl shadow-sm bg-white">
-                    <h4 className="font-bold text-sm text-indigo-900 mb-3 border-b pb-2">{dia === 'Terca'?'Terça':dia==='Sabado'?'Sábado':dia}</h4>
+                    <h4 className="font-bold text-sm text-indigo-900 mb-3 border-b pb-2">{labelDia(dia)}</h4>
                     <div className="space-y-3">
                       {['manha','tarde','noite'].map(turno => {
                         if (turnos[dia][turno] === 0) return null;
@@ -458,20 +656,23 @@ function App() {
                         return (
                           <div key={turno} className="bg-slate-50 p-3 rounded-lg border border-slate-100">
                             <div className="flex justify-between items-center mb-2">
-                              <span className="text-[10px] font-black uppercase text-slate-500 bg-white px-2 py-0.5 rounded border shadow-sm">{turno === 'manha'?'Manhã':turno==='tarde'?'Tarde':'Noite'}</span>
-                              <span className="text-[10px] font-bold text-indigo-500">{slot.horasTurno}h</span>
+                              <span className="text-[10px] font-black uppercase text-slate-500 bg-white px-2 py-0.5 rounded border shadow-sm">{labelTurno(turno)}</span>
+                              <span className="text-[10px] font-bold text-indigo-500">{slot.horasTurno}h disponíveis</span>
                             </div>
                             {slot.itens.length > 0 ? (
                               <ul className="space-y-1.5 mt-2">
                                 {slot.itens.map((item, idx) => (
                                   <li key={idx} className="text-xs font-semibold text-slate-800 flex gap-1.5 items-start">
-                                    <span className="text-emerald-500 mt-0.5">▪</span>
-                                    <span>{item.nome} <span className="font-normal text-slate-400">(~{item.tempoEstimado}h)</span></span>
+                                    <span className={`mt-0.5 flex-shrink-0 ${item.continuacao ? 'text-amber-400' : 'text-emerald-500'}`}>▪</span>
+                                    <span>
+                                      {gerarNomeAcao(item, item.horasFazer)}
+                                      <span className="font-normal text-slate-400 ml-1">(~{item.horasFazer}h{item.parcial ? ` de ${item.totalHoras}h` : ''})</span>
+                                    </span>
                                   </li>
                                 ))}
                               </ul>
                             ) : (
-                              <p className="text-xs text-slate-500 italic mt-2">Tempo livre para Revisão ou Leituras.</p>
+                              <p className="text-xs text-slate-500 italic mt-2">Tempo livre — use para revisão ou leituras extras.</p>
                             )}
                           </div>
                         );
@@ -481,17 +682,27 @@ function App() {
                 );
               })}
             </div>
+
             {cronogramaGerado.itensExcedentes.length > 0 && (
               <div className="mt-6 p-4 bg-amber-50 rounded-xl border border-amber-200">
-                <h4 className="text-xs font-bold text-amber-900 uppercase mb-2">Backlog (próxima semana):</h4>
-                <div className="flex flex-wrap gap-2">{cronogramaGerado.itensExcedentes.map((i, idx) => <span key={idx} className="text-[10px] bg-white border border-amber-100 text-amber-800 px-2 py-1 rounded">{i.nome} (~{i.tempoEstimado}h)</span>)}</div>
+                <h4 className="text-xs font-bold text-amber-900 uppercase mb-2">Backlog — próxima semana:</h4>
+                <p className="text-xs text-amber-800 mb-3">Estas tarefas não couberem nas horas desta semana. Guarde-as para a próxima:</p>
+                <div className="flex flex-wrap gap-2">
+                  {cronogramaGerado.itensExcedentes.map((i, idx) => (
+                    <span key={idx} className="text-[10px] bg-white border border-amber-100 text-amber-800 px-2 py-1 rounded">
+                      {gerarNomeAcao(i, i.horasRestantes)} (~{i.horasRestantes}h restantes)
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
           </div>
 
+          {/* MVP + POMODORO */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-lg">
               <h3 className="text-sm font-black text-amber-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Target className="w-5 h-5"/> A Regra de Ouro (MVP)</h3>
+              <p className="text-xs text-slate-300 mb-4 leading-relaxed">Se imprevistos destruírem o seu planejamento, faça apenas as <strong>Metas Mínimas Viáveis</strong> para a pesquisa não morrer:</p>
               <ul className="space-y-3 text-sm font-semibold">
                 <li className="flex gap-3"><CheckCircle className="w-5 h-5 text-emerald-400 flex-shrink-0"/> <span>{metaMinima.escrita}</span></li>
                 <li className="flex gap-3"><CheckCircle className="w-5 h-5 text-emerald-400 flex-shrink-0"/> <span>{metaMinima.leitura}</span></li>
@@ -512,6 +723,7 @@ function App() {
             </div>
           </div>
 
+          {/* DESTRAVADOR */}
           <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm text-center">
             <h3 className="text-sm font-black uppercase text-slate-400 mb-4">Síndrome da Página em Branco?</h3>
             <div className="flex flex-wrap justify-center gap-2 mb-4">
