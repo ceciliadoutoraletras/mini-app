@@ -1,0 +1,1684 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Costão BarBook</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; background-color: #FDFAF5; color: #1E293B; margin: 0; }
+    h1,h2,h3,h4,h5,h6 { font-family: 'Sora', sans-serif; }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #0f766e; border-radius: 3px; }
+
+    .fade-up { animation: fadeUp 0.4s ease both; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-up-1 { animation-delay: 0.05s; }
+    .fade-up-2 { animation-delay: 0.10s; }
+    .fade-up-3 { animation-delay: 0.15s; }
+    .fade-up-4 { animation-delay: 0.20s; }
+    .fade-up-5 { animation-delay: 0.25s; }
+
+    .card-hover { transition: transform 0.18s ease, box-shadow 0.18s ease; }
+    .card-hover:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(15,118,110,0.15); }
+
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(15,23,42,0.6);
+      backdrop-filter: blur(4px); z-index: 50;
+      display: flex; align-items: flex-end; justify-content: center;
+    }
+    @media(min-width:640px) {
+      .modal-overlay { align-items: center; }
+    }
+    .modal-sheet {
+      background: #FDFAF5; border-radius: 20px 20px 0 0;
+      width: 100%; max-width: 640px; max-height: 92vh;
+      overflow-y: auto; padding: 0;
+      animation: slideUp 0.3s ease;
+    }
+    @media(min-width:640px) {
+      .modal-sheet { border-radius: 20px; max-height: 88vh; }
+    }
+    @keyframes slideUp {
+      from { transform: translateY(40px); opacity: 0; }
+      to   { transform: translateY(0);   opacity: 1; }
+    }
+
+    .pill {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 4px 12px; border-radius: 99px; font-size: 12px; font-weight: 500;
+      cursor: pointer; transition: all 0.15s ease; white-space: nowrap;
+      border: 1.5px solid transparent;
+    }
+    .pill-active { background: #0f766e; color: white; border-color: #0f766e; }
+    .pill-inactive { background: white; color: #475569; border-color: #e2e8f0; }
+    .pill-inactive:hover { border-color: #0f766e; color: #0f766e; }
+
+    .step-dot {
+      width: 24px; height: 24px; min-width: 24px;
+      border-radius: 50%; background: #0f766e; color: white;
+      font-size: 11px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .progress-bar-track { background: #e2e8f0; border-radius: 99px; height: 8px; overflow: hidden; }
+    .progress-bar-fill { background: #0f766e; height: 100%; border-radius: 99px; transition: width 0.5s ease; }
+
+    .quiz-opt {
+      width: 100%; text-align: left; padding: 12px 16px;
+      border: 2px solid #e2e8f0; border-radius: 12px;
+      font-size: 14px; cursor: pointer; transition: all 0.15s ease;
+      background: white;
+    }
+    .quiz-opt:hover:not(:disabled) { border-color: #0f766e; background: #f0fdfa; }
+    .quiz-opt-correct { border-color: #16a34a !important; background: #f0fdf4 !important; color: #15803d; }
+    .quiz-opt-wrong   { border-color: #dc2626 !important; background: #fef2f2 !important; color: #dc2626; }
+
+    .nav-tab {
+      flex: 1; padding: 10px 4px; text-align: center;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.02em;
+      cursor: pointer; border-bottom: 3px solid transparent;
+      transition: all 0.15s ease; color: #94a3b8;
+    }
+    .nav-tab-active { border-color: #0f766e; color: #0f766e; }
+
+    .bar-card {
+      position: relative; border-radius: 16px; padding: 20px;
+      cursor: pointer; overflow: hidden;
+      border: 2px solid transparent;
+      transition: all 0.2s ease;
+    }
+    .bar-card:hover { border-color: rgba(255,255,255,0.4); transform: translateY(-2px); }
+    .bar-card-inner { position: relative; z-index: 1; }
+
+    input[type=text], input[type=search] { outline: none; }
+    input:focus { box-shadow: 0 0 0 3px rgba(15,118,110,0.15); }
+
+    .fav-btn { transition: transform 0.2s ease; }
+    .fav-btn:active { transform: scale(1.3); }
+
+    .tag {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+      padding: 2px 8px; border-radius: 99px; text-transform: uppercase;
+    }
+    .tag-autoral { background: #fef3c7; color: #92400e; }
+    .tag-classico { background: #e0e7ff; color: #3730a3; }
+    .tag-semAlcool { background: #dcfce7; color: #166534; }
+    .tag-frozen { background: #dbeafe; color: #1e40af; }
+    .tag-assinatura { background: #fce7f3; color: #9d174d; }
+    .tag-tropical { background: #fef9c3; color: #713f12; }
+    .tag-aperitivo { background: #ffe4e6; color: #9f1239; }
+    .tag-gin { background: #f0fdf4; color: #166534; }
+    .tag-default { background: #f1f5f9; color: #475569; }
+
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+  </style>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18.3.1",
+      "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
+      "react-dom": "https://esm.sh/react-dom@18.3.1",
+      "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+      "lucide-react": "https://esm.sh/lucide-react@0.344.0?external=react,react-dom"
+    }
+  }
+  </script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="antialiased min-h-screen">
+
+<div id="root"></div>
+
+<script type="text/babel" data-type="module">
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { createRoot } from 'react-dom/client';
+import {
+  Search, Star, BookOpen, ChevronLeft, X,
+  Wine, Droplets, GlassWater, Leaf,
+  CheckCircle2, Circle, BarChart3, Zap,
+  Coffee, Heart, Award, AlertCircle, Info, RefreshCw
+} from 'lucide-react';
+
+// ─── CORES DOS BARES ─────────────────────────────────────────────────────────
+const BAR_COLORS = {
+  'Restaurante Ondas - Bar 1':           { bg: '#0c4a6e', emoji: '🌊' },
+  'Restaurante Ondas - Bar 2':           { bg: '#075985', emoji: '🫧' },
+  'Bar Carijós':                         { bg: '#065f46', emoji: '🌿' },
+  'Bar CPP':                             { bg: '#1e1b4b', emoji: '🍸' },
+  'Bar do Restaurante Rancho do Pescador':{ bg: '#7c2d12', emoji: '🦐' },
+  'Bar do Parador':                      { bg: '#3b0764', emoji: '🍋' },
+  'Bar do Kaigan':                       { bg: '#0c1445', emoji: '🍶' },
+  'Bar do Restaurante Tratoria':         { bg: '#7f1d1d', emoji: '🍷' },
+  'Sport Bar':                           { bg: '#1c1917', emoji: '🥃' },
+  'Bar do Restaurante Vitória':          { bg: '#4a044e', emoji: '🥂' },
+  'Bar da Praia':                        { bg: '#a16207', emoji: '🏖️' },
+  'Bar Molhado':                         { bg: '#0e7490', emoji: '💧' },
+  'Bar das Piscinas':                    { bg: '#0369a1', emoji: '🏊' },
+  'Bar do Deck':                         { bg: '#15803d', emoji: '🌅' },
+};
+
+// ─── BANCO DE DRINKS (fichas de exemplo — substitua pelas oficiais) ───────────
+const DRINKS = [
+  // ── Restaurante Ondas - Bar 1 ──────────────────────────────────────────────
+  {
+    id:1, bar:'Restaurante Ondas - Bar 1', name:'Spritz Ondas', category:'Autoral',
+    gradient:'linear-gradient(135deg,#fb923c,#f97316)',
+    ingredients:[
+      {item:'Aperol',amount:'60ml'},
+      {item:'Prosecco',amount:'90ml'},
+      {item:'Água com gás',amount:'30ml'},
+      {item:'Gelo em cubos',amount:'a gosto'},
+    ],
+    preparation:[
+      'Encha a taça com gelo em cubos até a borda.',
+      'Adicione o Aperol.',
+      'Complete com o Prosecco devagar, inclinando a taça.',
+      'Adicione um splash de água com gás.',
+      'Decore e sirva imediatamente.',
+    ],
+    ice:'Cubos', glass:'Taça grande de vinho (wine glass)',
+    garnish:'Rodela de laranja + azeitona verde espetada',
+    notes:'Servir imediatamente após a montagem. Não mexer após adicionar o Prosecco para preservar o gás.',
+    substitutions:'Se faltar Prosecco, usar espumante brut nacional. Se faltar Aperol, usar Campari (40ml).',
+    nonAlcoholic:'Substituir Aperol por xarope de laranja amarga (30ml) + suco de laranja (30ml). Prosecco por água com gás premium.',
+  },
+  {
+    id:2, bar:'Restaurante Ondas - Bar 1', name:'Negroni Clássico', category:'Clássico',
+    gradient:'linear-gradient(135deg,#dc2626,#9a3412)',
+    ingredients:[
+      {item:'Gin London Dry',amount:'30ml'},
+      {item:'Campari',amount:'30ml'},
+      {item:'Vermute tinto',amount:'30ml'},
+      {item:'Gelo em cubos',amount:'a gosto'},
+    ],
+    preparation:[
+      'Coloque gelo no mixing glass.',
+      'Adicione todos os ingredientes.',
+      'Mexa delicadamente por 30 segundos — não bata na coqueteleira.',
+      'Coe sobre o copo com gelo em cubo grande.',
+      'Decore com twist de laranja e sirva.',
+    ],
+    ice:'Cubo grande (esfera ou bloco)', glass:'Old fashioned (rocks glass)',
+    garnish:'Twist de casca de laranja flambado',
+    notes:'Nunca usar coqueteleira. Mexer, não bater. Taça deve estar resfriada previamente.',
+    substitutions:'Se faltar vermute Martini Rosso, usar Cinzano. Se faltar Campari, usar Aperol (bebida fica mais suave).',
+    nonAlcoholic:null,
+  },
+  {
+    id:3, bar:'Restaurante Ondas - Bar 1', name:'French 75', category:'Clássico',
+    gradient:'linear-gradient(135deg,#fde68a,#f59e0b)',
+    ingredients:[
+      {item:'Gin',amount:'30ml'},
+      {item:'Suco de limão siciliano',amount:'15ml'},
+      {item:'Xarope simples',amount:'10ml'},
+      {item:'Espumante brut',amount:'completar (aprox. 60ml)'},
+    ],
+    preparation:[
+      'Bata na coqueteleira com gelo: gin, suco de limão e xarope.',
+      'Coe em flute gelada.',
+      'Complete cuidadosamente com o espumante.',
+      'Decore com twist de limão siciliano.',
+    ],
+    ice:'Sem gelo no copo', glass:'Flute',
+    garnish:'Twist de limão siciliano',
+    notes:'Usar flute previamente resfriada. Completar o espumante sempre com a flute inclinada.',
+    substitutions:'Vodka substitui gin (vira Moscow 75). Se faltar limão siciliano, usar taiti (10ml).',
+    nonAlcoholic:'Substituir gin por suco de pepino (20ml) + água de coco (10ml). Espumante por água com gás premium.',
+  },
+  // ── Restaurante Ondas - Bar 2 ──────────────────────────────────────────────
+  {
+    id:4, bar:'Restaurante Ondas - Bar 2', name:'Aperol Spritz', category:'Clássico',
+    gradient:'linear-gradient(135deg,#fb923c,#ea580c)',
+    ingredients:[
+      {item:'Aperol',amount:'60ml'},
+      {item:'Prosecco',amount:'90ml'},
+      {item:'Água com gás',amount:'30ml'},
+      {item:'Gelo em cubos',amount:'a gosto'},
+    ],
+    preparation:[
+      'Encha a taça com gelo em cubos.',
+      'Adicione o Aperol.',
+      'Complete com o Prosecco devagar.',
+      'Adicione a água com gás.',
+      'Mexa levemente uma vez e decore.',
+    ],
+    ice:'Cubos', glass:'Taça grande de vinho',
+    garnish:'Rodela de laranja',
+    notes:'Proporção oficial: 3 partes espumante, 2 Aperol, 1 água com gás. Servir imediatamente.',
+    substitutions:'Se faltar Prosecco, usar espumante brut nacional seco.',
+    nonAlcoholic:'Aperol por suco de laranja (40ml) + bitter sem álcool (10ml). Prosecco por água com gás.',
+  },
+  {
+    id:5, bar:'Restaurante Ondas - Bar 2', name:'Gin Tônica Premium', category:'Gin',
+    gradient:'linear-gradient(135deg,#6ee7b7,#059669)',
+    ingredients:[
+      {item:'Gin Premium',amount:'50ml'},
+      {item:'Água tônica premium',amount:'150ml'},
+      {item:'Gelo em cubos grandes',amount:'a gosto'},
+    ],
+    preparation:[
+      'Encha a taça balão com gelo até a borda.',
+      'Adicione o gin.',
+      'Complete com a tônica devagar, inclinando a taça.',
+      'Misture com a colher de bar uma única vez.',
+      'Adicione o garnish e sirva imediatamente.',
+    ],
+    ice:'Cubos grandes — nunca britado', glass:'Taça balão (copa gin)',
+    garnish:'Varia com o gin (consultar rótulo): limão siciliano, pepino, especiarias',
+    notes:'Nunca usar gelo britado. Nunca mexer em excesso após adicionar a tônica. Taça deve estar gelada.',
+    substitutions:'Se faltar tônica premium, usar tônica convencional (reduzir para 120ml).',
+    nonAlcoholic:'Gin por suco de pepino (30ml) + água de flor de saúco (20ml). Manter tônica.',
+  },
+  {
+    id:6, bar:'Restaurante Ondas - Bar 2', name:'Kir Royal', category:'Clássico',
+    gradient:'linear-gradient(135deg,#fce7f3,#a21caf)',
+    ingredients:[
+      {item:'Crème de cassis',amount:'15ml'},
+      {item:'Champagne ou espumante brut',amount:'completar (aprox. 100ml)'},
+    ],
+    preparation:[
+      'Coloque o crème de cassis na flute gelada.',
+      'Complete com champagne devagar, inclinando a taça.',
+      'Não mexer.',
+    ],
+    ice:'Sem gelo', glass:'Flute',
+    garnish:'Framboesa flutuante (opcional)',
+    notes:'Flute deve estar gelada. Champagne deve estar bem frio (4°C). Não misturar — o cassis afunda naturalmente.',
+    substitutions:'Se faltar crème de cassis, usar licor de framboesa. Espumante brut nacional substitui champagne.',
+    nonAlcoholic:null,
+  },
+  // ── Bar Carijós ────────────────────────────────────────────────────────────
+  {
+    id:7, bar:'Bar Carijós', name:'Caipirinha Clássica', category:'Clássico',
+    gradient:'linear-gradient(135deg,#bef264,#65a30d)',
+    ingredients:[
+      {item:'Cachaça artesanal',amount:'60ml'},
+      {item:'Limão taiti',amount:'1/2 unidade'},
+      {item:'Açúcar refinado',amount:'2 colheres de chá (aprox. 10g)'},
+      {item:'Gelo britado',amount:'a gosto'},
+    ],
+    preparation:[
+      'Corte o limão em 4 partes e retire o miolo branco central.',
+      'Coloque no copo com o açúcar.',
+      'Macere firmemente com o pilão (4 a 5 pressões).',
+      'Adicione a cachaça.',
+      'Complete com gelo britado e mexa.',
+    ],
+    ice:'Britado', glass:'Old fashioned (baixo)',
+    garnish:'Rodela de limão na borda',
+    notes:'Não macerar com força excessiva — cascas liberam óleos amargos. Colocar açúcar ANTES do limão facilita a maceração.',
+    substitutions:'Se faltar cachaça artesanal, usar cachaça convencional de boa qualidade.',
+    nonAlcoholic:'Substituir cachaça por água de coco (50ml) + água com gás (20ml).',
+  },
+  {
+    id:8, bar:'Bar Carijós', name:'Mojito', category:'Clássico',
+    gradient:'linear-gradient(135deg,#6ee7b7,#10b981)',
+    ingredients:[
+      {item:'Rum branco',amount:'50ml'},
+      {item:'Suco de limão taiti',amount:'25ml'},
+      {item:'Xarope simples',amount:'15ml'},
+      {item:'Hortelã fresca',amount:'8 a 10 folhas'},
+      {item:'Água com gás',amount:'completar (aprox. 60ml)'},
+      {item:'Gelo britado',amount:'a gosto'},
+    ],
+    preparation:[
+      'Coloque as folhas de hortelã no copo com o xarope.',
+      'Macere levemente — pressionar para soltar aroma, não esmagar.',
+      'Adicione suco de limão e rum.',
+      'Encha com gelo britado.',
+      'Complete com água com gás e mexa delicadamente.',
+    ],
+    ice:'Britado', glass:'Highball (copo alto)',
+    garnish:'Ramo de hortelã + rodela de limão + canudo',
+    notes:'Hortelã macerada demais amarga a bebida. Antes de colocar o ramo como garnish, "espancar" levemente na palma da mão para liberar aroma.',
+    substitutions:'Se faltar rum branco, usar cachaça (vira Caipimojito). Água com gás por Sprite apenas se autorizado.',
+    nonAlcoholic:'Retirar rum. Adicionar 30ml a mais de água com gás e 10ml de suco de maçã.',
+  },
+  {
+    id:9, bar:'Bar Carijós', name:'Gin Tropical Costão', category:'Assinatura',
+    gradient:'linear-gradient(135deg,#fde68a,#f97316)',
+    ingredients:[
+      {item:'Gin',amount:'50ml'},
+      {item:'Suco de maracujá natural',amount:'30ml'},
+      {item:'Xarope de gengibre',amount:'15ml'},
+      {item:'Suco de limão siciliano',amount:'15ml'},
+      {item:'Água tônica',amount:'60ml'},
+    ],
+    preparation:[
+      'Bata na coqueteleira com gelo: gin, maracujá, xarope de gengibre e suco de limão.',
+      'Coe em taça balão com gelo em cubo grande.',
+      'Complete com a tônica devagar.',
+      'Decore e sirva imediatamente.',
+    ],
+    ice:'Cubos grandes', glass:'Taça balão',
+    garnish:'Rodela de limão siciliano + folha de manjericão',
+    notes:'Drink assinatura do Costão. Usar suco de maracujá fresco sempre que disponível.',
+    substitutions:'Se faltar xarope de gengibre, usar 10ml suco de gengibre fresco + 5ml xarope simples.',
+    nonAlcoholic:'Substituir gin por 30ml suco de pepino + 20ml água de coco. Manter tônica.',
+  },
+  // ── Bar CPP ────────────────────────────────────────────────────────────────
+  {
+    id:10, bar:'Bar CPP', name:'Moscow Mule', category:'Clássico',
+    gradient:'linear-gradient(135deg,#fde68a,#ca8a04)',
+    ingredients:[
+      {item:'Vodka',amount:'50ml'},
+      {item:'Suco de limão taiti',amount:'20ml'},
+      {item:'Ginger beer',amount:'120ml'},
+      {item:'Gelo em cubos',amount:'a gosto'},
+    ],
+    preparation:[
+      'Encha o copo de cobre com gelo em cubos.',
+      'Adicione a vodka e o suco de limão.',
+      'Complete com ginger beer devagar.',
+      'Mexa levemente e decore.',
+    ],
+    ice:'Cubos', glass:'Caneca de cobre (copper mug) ou highball',
+    garnish:'Rodela de limão + ramo de hortelã',
+    notes:'Usar caneca de cobre gelada sempre que disponível. Ginger beer — não ginger ale.',
+    substitutions:'Se faltar ginger beer, usar ginger ale (sabor menos intenso — aceitar apenas se autorizado). Se faltar caneca de cobre, usar highball.',
+    nonAlcoholic:'Retirar vodka. Adicionar 30ml de água com gás e 10ml de suco de maçã verde.',
+  },
+  {
+    id:11, bar:'Bar CPP', name:'Cosmopolitan', category:'Clássico',
+    gradient:'linear-gradient(135deg,#fda4af,#e11d48)',
+    ingredients:[
+      {item:'Vodka Citron',amount:'40ml'},
+      {item:'Cointreau (triple sec)',amount:'15ml'},
+      {item:'Suco de limão taiti',amount:'15ml'},
+      {item:'Suco de cranberry',amount:'30ml'},
+    ],
+    preparation:[
+      'Coloque todos os ingredientes na coqueteleira com gelo.',
+      'Bata vigorosamente por 12 a 15 segundos.',
+      'Coe em taça coupe ou martini gelada.',
+      'Decore com twist de casca de limão.',
+    ],
+    ice:'Sem gelo no copo', glass:'Taça coupe ou martini',
+    garnish:'Twist de casca de limão siciliano',
+    notes:'Taça deve estar previamente resfriada. Servir imediatamente.',
+    substitutions:'Se faltar Cointreau, usar triple sec nacional. Se faltar vodka citron, usar vodka normal + 5ml suco de limão a mais.',
+    nonAlcoholic:'Substituir vodka por água de coco (40ml), Cointreau por suco de laranja (15ml).',
+  },
+  {
+    id:12, bar:'Bar CPP', name:'Vodka Soda', category:'Clássico',
+    gradient:'linear-gradient(135deg,#e0f2fe,#0ea5e9)',
+    ingredients:[
+      {item:'Vodka',amount:'50ml'},
+      {item:'Água com gás',amount:'150ml'},
+      {item:'Suco de limão taiti',amount:'15ml'},
+      {item:'Gelo em cubos',amount:'a gosto'},
+    ],
+    preparation:[
+      'Encha o copo alto com gelo em cubos.',
+      'Adicione a vodka e o suco de limão.',
+      'Complete com água com gás.',
+      'Mexa levemente uma vez e decore.',
+    ],
+    ice:'Cubos', glass:'Highball',
+    garnish:'Rodela de limão + canudo',
+    notes:'Drink simples e limpo. Não exagerar no limão. Gelo deve estar seco, não aguado.',
+    substitutions:'Pode usar água com gás com sabor (limão ou neutro).',
+    nonAlcoholic:'Retirar vodka. Adicionar 30ml suco de maçã ou toranja.',
+  },
+  // ── Bar do Restaurante Rancho do Pescador ──────────────────────────────────
+  {
+    id:13, bar:'Bar do Restaurante Rancho do Pescador', name:'Caipirinha de Maracujá', category:'Tropical',
+    gradient:'linear-gradient(135deg,#fef08a,#f59e0b)',
+    ingredients:[
+      {item:'Cachaça',amount:'60ml'},
+      {item:'Polpa de maracujá',amount:'30ml'},
+      {item:'Limão taiti',amount:'1/4 unidade'},
+      {item:'Açúcar',amount:'2 colheres de chá'},
+      {item:'Gelo britado',amount:'a gosto'},
+    ],
+    preparation:[
+      'Macere o limão com o açúcar no copo.',
+      'Adicione a polpa de maracujá.',
+      'Adicione a cachaça.',
+      'Complete com gelo britado e mexa.',
+    ],
+    ice:'Britado', glass:'Old fashioned',
+    garnish:'Fatia de maracujá com polpa + limão na borda',
+    notes:'Usar polpa de maracujá com sementes para apresentação. Equilibrar acidez do maracujá com o açúcar.',
+    substitutions:'Se faltar maracujá fresco, usar polpa congelada (descongelar antes).',
+    nonAlcoholic:'Substituir cachaça por água de coco (40ml) + água com gás (20ml).',
+  },
+  {
+    id:14, bar:'Bar do Restaurante Rancho do Pescador', name:'Piña Colada', category:'Tropical',
+    gradient:'linear-gradient(135deg,#fef9c3,#fbbf24)',
+    ingredients:[
+      {item:'Rum branco',amount:'50ml'},
+      {item:'Leite de coco',amount:'40ml'},
+      {item:'Suco de abacaxi natural',amount:'80ml'},
+      {item:'Gelo em cubos',amount:'1 xícara'},
+    ],
+    preparation:[
+      'Coloque todos os ingredientes no liquidificador.',
+      'Bata até ficar homogêneo e cremoso (30 segundos).',
+      'Sirva em copo hurricane ou taça grande.',
+      'Decore e sirva imediatamente.',
+    ],
+    ice:'Cubos (batidos no liquidificador)', glass:'Hurricane ou taça grande',
+    garnish:'Fatia de abacaxi + cereja marrasquino + canudo',
+    notes:'Usar suco de abacaxi fresco quando disponível. Bater apenas até cremoso — não liquefazer demais.',
+    substitutions:'Se faltar leite de coco, usar creme de coco (25ml + 15ml água).',
+    nonAlcoholic:'Retirar rum. Adicionar 30ml de suco de abacaxi a mais.',
+  },
+  // ── Bar do Parador ─────────────────────────────────────────────────────────
+  {
+    id:15, bar:'Bar do Parador', name:'Margarita Clássica', category:'Clássico',
+    gradient:'linear-gradient(135deg,#a3e635,#65a30d)',
+    ingredients:[
+      {item:'Tequila Blanco',amount:'50ml'},
+      {item:'Cointreau (triple sec)',amount:'20ml'},
+      {item:'Suco de limão taiti',amount:'25ml'},
+      {item:'Sal',amount:'para bordar (opcional)'},
+    ],
+    preparation:[
+      'Bordar a borda da taça com sal (umedecer com limão, mergulhar no sal).',
+      'Bater na coqueteleira com gelo: tequila, cointreau e suco de limão.',
+      'Bater vigorosamente por 15 segundos.',
+      'Coar em taça margarita ou coupe.',
+    ],
+    ice:'Perguntar ao hóspede: sem gelo (straight up) ou com gelo (on the rocks)', glass:'Taça margarita ou coupe',
+    garnish:'Borda de sal + rodela de limão',
+    notes:'Perguntar ao hóspede se prefere com ou sem sal na borda. Com ou sem gelo.',
+    substitutions:'Se faltar Cointreau, usar triple sec. Se faltar tequila blanco, usar reposado (sabor mais intenso).',
+    nonAlcoholic:'Virgin Margarita: retirar tequila, adicionar 30ml suco de laranja + 15ml água com gás.',
+  },
+  {
+    id:16, bar:'Bar do Parador', name:'Tequila Sunrise', category:'Tropical',
+    gradient:'linear-gradient(135deg,#fde68a,#f97316,#dc2626)',
+    ingredients:[
+      {item:'Tequila Blanco',amount:'50ml'},
+      {item:'Suco de laranja natural',amount:'100ml'},
+      {item:'Grenadine (xarope de romã)',amount:'15ml'},
+      {item:'Gelo em cubos',amount:'a gosto'},
+    ],
+    preparation:[
+      'Encha o copo com gelo em cubos.',
+      'Adicione a tequila.',
+      'Complete com suco de laranja e mexa.',
+      'Adicione a grenadine devagar pela borda do copo — ela afunda e cria o efeito sunrise.',
+      'NÃO mexer após adicionar a grenadine.',
+    ],
+    ice:'Cubos', glass:'Highball ou hurricane',
+    garnish:'Rodela de laranja + cereja marrasquino',
+    notes:'A grenadine NUNCA deve ser mexida após adicionada. O efeito visual de pôr-do-sol é parte da apresentação.',
+    substitutions:'Se faltar grenadine, usar xarope de morango (cor ligeiramente diferente).',
+    nonAlcoholic:'Retirar tequila. Adicionar 50ml suco de abacaxi. Manter efeito visual com grenadine.',
+  },
+  {
+    id:17, bar:'Bar do Parador', name:'Paloma', category:'Clássico',
+    gradient:'linear-gradient(135deg,#fda4af,#f43f5e)',
+    ingredients:[
+      {item:'Tequila Blanco',amount:'50ml'},
+      {item:'Suco de toranja (grapefruit)',amount:'60ml'},
+      {item:'Suco de limão taiti',amount:'15ml'},
+      {item:'Xarope simples',amount:'10ml'},
+      {item:'Pitada de sal',amount:'1 pitada'},
+      {item:'Água com gás',amount:'30ml'},
+    ],
+    preparation:[
+      'Bata na coqueteleira: tequila, toranja, limão, xarope e sal.',
+      'Coe em copo alto com gelo em cubos.',
+      'Complete com água com gás.',
+      'Mexa levemente e decore.',
+    ],
+    ice:'Cubos', glass:'Highball',
+    garnish:'Rodela de toranja + sal na borda (opcional)',
+    notes:'Usar toranja fresca. A Paloma é menos conhecida que a Margarita — vale indicar ao hóspede quando sugerida.',
+    substitutions:'Se faltar toranja fresca, usar suco industrializado (reduzir xarope para 5ml).',
+    nonAlcoholic:'Retirar tequila. Adicionar 30ml suco de laranja + 30ml água com gás.',
+  },
+  // ── Bar do Kaigan ──────────────────────────────────────────────────────────
+  {
+    id:18, bar:'Bar do Kaigan', name:'Sake Tônica', category:'Autoral',
+    gradient:'linear-gradient(135deg,#e0e7ff,#6366f1)',
+    ingredients:[
+      {item:'Sake seco',amount:'60ml'},
+      {item:'Água tônica premium',amount:'120ml'},
+      {item:'Suco de limão siciliano',amount:'10ml'},
+      {item:'Gelo em cubos grandes',amount:'a gosto'},
+    ],
+    preparation:[
+      'Encha a taça balão com gelo em cubos grandes.',
+      'Adicione o sake e o suco de limão.',
+      'Complete com tônica devagar.',
+      'Mexa gentilmente uma vez e decore.',
+    ],
+    ice:'Cubos grandes', glass:'Taça balão',
+    garnish:'Rodela fina de pepino + ramo de shiso (ou hortelã)',
+    notes:'Usar sake seco (junmai ou honjozo). Sake doce altera completamente o perfil do drink.',
+    substitutions:'Se faltar tônica premium, usar tônica convencional.',
+    nonAlcoholic:'Substituir sake por água de arroz (100ml) + 10ml vinagre de arroz + completar com tônica.',
+  },
+  {
+    id:19, bar:'Bar do Kaigan', name:'Lychee Martini', category:'Autoral',
+    gradient:'linear-gradient(135deg,#fce7f3,#ec4899)',
+    ingredients:[
+      {item:'Vodka',amount:'40ml'},
+      {item:'Licor de lychee',amount:'20ml'},
+      {item:'Suco de lychee (da calda)',amount:'20ml'},
+      {item:'Suco de limão taiti',amount:'10ml'},
+    ],
+    preparation:[
+      'Bata todos os ingredientes na coqueteleira com gelo.',
+      'Bater vigorosamente por 15 segundos.',
+      'Coar em taça martini gelada.',
+      'Decore com lychee espetado.',
+    ],
+    ice:'Sem gelo no copo', glass:'Taça martini',
+    garnish:'Lychee espetado em palito',
+    notes:'Taça deve estar gelada. Servir imediatamente.',
+    substitutions:'Se faltar licor de lychee, usar xarope de lichia (25ml) e reduzir suco da calda para 15ml.',
+    nonAlcoholic:'Retirar vodka. Adicionar 30ml água de coco + 10ml a mais de suco de lychee.',
+  },
+  // ── Bar do Restaurante Tratoria ────────────────────────────────────────────
+  {
+    id:20, bar:'Bar do Restaurante Tratoria', name:'Spritz Campari', category:'Aperitivo',
+    gradient:'linear-gradient(135deg,#fca5a5,#dc2626)',
+    ingredients:[
+      {item:'Campari',amount:'60ml'},
+      {item:'Prosecco',amount:'90ml'},
+      {item:'Água com gás',amount:'30ml'},
+      {item:'Gelo em cubos',amount:'a gosto'},
+    ],
+    preparation:[
+      'Encha a taça com gelo.',
+      'Adicione o Campari.',
+      'Complete com Prosecco devagar.',
+      'Adicione a água com gás.',
+      'Decore e sirva.',
+    ],
+    ice:'Cubos', glass:'Taça grande de vinho',
+    garnish:'Rodela de laranja + azeitona verde',
+    notes:'Versão mais amarga que o Aperol Spritz. Indicado como aperitivo antes do jantar.',
+    substitutions:'Se faltar Prosecco, usar espumante brut nacional.',
+    nonAlcoholic:null,
+  },
+  {
+    id:21, bar:'Bar do Restaurante Tratoria', name:'Limoncello Tônica', category:'Autoral',
+    gradient:'linear-gradient(135deg,#fef08a,#eab308)',
+    ingredients:[
+      {item:'Limoncello',amount:'40ml'},
+      {item:'Água tônica',amount:'120ml'},
+      {item:'Suco de limão siciliano',amount:'10ml'},
+      {item:'Gelo em cubos',amount:'a gosto'},
+    ],
+    preparation:[
+      'Encha a taça balão com gelo.',
+      'Adicione o limoncello e o suco de limão.',
+      'Complete com tônica devagar.',
+      'Decore e sirva.',
+    ],
+    ice:'Cubos grandes', glass:'Taça balão',
+    garnish:'Twist de casca de limão siciliano',
+    notes:'Drink leve e refrescante. Ideal como aperitivo ou acompanhamento de frutos do mar.',
+    substitutions:'Se faltar limoncello, usar triple sec + 10ml suco de limão a mais.',
+    nonAlcoholic:'Substituir limoncello por xarope de limão siciliano (20ml) + suco de limão (20ml) + tônica.',
+  },
+  {
+    id:22, bar:'Bar do Restaurante Tratoria', name:'Negroni Sbagliato', category:'Clássico',
+    gradient:'linear-gradient(135deg,#fca5a5,#9f1239)',
+    ingredients:[
+      {item:'Campari',amount:'30ml'},
+      {item:'Vermute tinto',amount:'30ml'},
+      {item:'Prosecco',amount:'30ml'},
+    ],
+    preparation:[
+      'Encha o copo com gelo em cubos.',
+      'Adicione o Campari e o vermute.',
+      'Mexa levemente.',
+      'Complete com Prosecco — não mexer após.',
+      'Decore com twist de laranja.',
+    ],
+    ice:'Cubos', glass:'Old fashioned ou flute',
+    garnish:'Twist de laranja',
+    notes:'Versão "errada" do Negroni clássico (sbagliato = errado em italiano). Substituição do gin por Prosecco. Mais leve e borbulhante.',
+    substitutions:'Se faltar Prosecco, usar espumante brut.',
+    nonAlcoholic:null,
+  },
+  // ── Sport Bar ──────────────────────────────────────────────────────────────
+  {
+    id:23, bar:'Sport Bar', name:'Old Fashioned', category:'Clássico',
+    gradient:'linear-gradient(135deg,#d97706,#92400e)',
+    ingredients:[
+      {item:'Bourbon ou Rye Whisky',amount:'60ml'},
+      {item:'Xarope simples',amount:'5ml (1 colher de chá)'},
+      {item:'Angostura Bitters',amount:'2 dashes'},
+      {item:'Gelo em bloco ou esfera',amount:'1 unidade grande'},
+    ],
+    preparation:[
+      'No copo, adicione o xarope e o bitters.',
+      'Adicione o whisky.',
+      'Mexa com colher de bar por 20 segundos.',
+      'Adicione o bloco de gelo.',
+      'Decore com twist de laranja.',
+    ],
+    ice:'Bloco único ou esfera grande — nunca britado', glass:'Old fashioned (rocks glass)',
+    garnish:'Twist de casca de laranja (flambar opcionalmente) + cereja luxardo',
+    notes:'Não usar coqueteleira. Nunca usar gelo britado — dilui o drink rapidamente.',
+    substitutions:'Bourbon preferível. Rye whisky aceito. Scotch single malt para versão premium.',
+    nonAlcoholic:null,
+  },
+  {
+    id:24, bar:'Sport Bar', name:'Whisky Sour', category:'Clássico',
+    gradient:'linear-gradient(135deg,#fde68a,#ca8a04)',
+    ingredients:[
+      {item:'Bourbon Whisky',amount:'50ml'},
+      {item:'Suco de limão taiti',amount:'25ml'},
+      {item:'Xarope simples',amount:'20ml'},
+      {item:'Clara de ovo (opcional)',amount:'15ml'},
+    ],
+    preparation:[
+      'Se usar clara de ovo: dry shake primeiro (bater sem gelo por 10 segundos).',
+      'Adicionar gelo e bater novamente vigorosamente.',
+      'Coar em taça coupe ou rocks glass.',
+      'Finalizar com 2 a 3 dashes de bitters em cima da espuma.',
+    ],
+    ice:'Perguntar ao hóspede: sem gelo (straight up) ou on the rocks', glass:'Taça coupe ou rocks glass',
+    garnish:'Dashes de Angostura Bitters + cereja',
+    notes:'Clara de ovo cria espuma. Perguntar ao hóspede se aceita. Alternativa vegana: aquafaba (água de grão-de-bico).',
+    substitutions:'Se faltar Bourbon, usar Scotch blend (sabor muda levemente).',
+    nonAlcoholic:'Retirar whisky. Usar 30ml xarope de mel + 30ml suco de maçã. Manter limão.',
+  },
+  {
+    id:25, bar:'Sport Bar', name:'Long Island Ice Tea', category:'Clássico',
+    gradient:'linear-gradient(135deg,#d1fae5,#064e3b)',
+    ingredients:[
+      {item:'Vodka',amount:'20ml'},
+      {item:'Gin',amount:'20ml'},
+      {item:'Rum branco',amount:'20ml'},
+      {item:'Tequila Blanco',amount:'20ml'},
+      {item:'Cointreau (triple sec)',amount:'20ml'},
+      {item:'Suco de limão taiti',amount:'25ml'},
+      {item:'Xarope simples',amount:'15ml'},
+      {item:'Coca-Cola',amount:'completar (aprox. 30ml)'},
+    ],
+    preparation:[
+      'Bata na coqueteleira com gelo: vodka, gin, rum, tequila, cointreau, limão e xarope.',
+      'Coar em copo alto com gelo em cubos.',
+      'Complete com Coca-Cola devagar.',
+      'Mexa levemente e decore.',
+    ],
+    ice:'Cubos', glass:'Highball grande',
+    garnish:'Rodela de limão + canudo',
+    notes:'Alto teor alcoólico (5 destilados). Informar ao hóspede quando solicitado.',
+    substitutions:'Se faltar Cointreau, usar triple sec nacional.',
+    nonAlcoholic:null,
+  },
+  // ── Bar do Restaurante Vitória ─────────────────────────────────────────────
+  {
+    id:26, bar:'Bar do Restaurante Vitória', name:'Champagne Cocktail', category:'Clássico',
+    gradient:'linear-gradient(135deg,#fef3c7,#d97706)',
+    ingredients:[
+      {item:'Cubo de açúcar',amount:'1 unidade'},
+      {item:'Angostura Bitters',amount:'2 dashes'},
+      {item:'Cognac ou Brandy',amount:'10ml'},
+      {item:'Champagne ou espumante',amount:'completar'},
+    ],
+    preparation:[
+      'Coloque o cubo de açúcar na flute.',
+      'Adicione o bitters no cubo (ele absorve o bitters).',
+      'Adicione o cognac.',
+      'Complete com champagne devagar.',
+    ],
+    ice:'Sem gelo', glass:'Flute',
+    garnish:'Twist de casca de laranja',
+    notes:'O cubo de açúcar cria borbulhamento contínuo — parte da apresentação do drink.',
+    substitutions:'Se faltar cognac, usar brandy nacional.',
+    nonAlcoholic:null,
+  },
+  {
+    id:27, bar:'Bar do Restaurante Vitória', name:'Kir Royal', category:'Clássico',
+    gradient:'linear-gradient(135deg,#f0abfc,#a21caf)',
+    ingredients:[
+      {item:'Crème de cassis',amount:'15ml'},
+      {item:'Champagne ou espumante brut',amount:'completar (aprox. 100ml)'},
+    ],
+    preparation:[
+      'Coloque o crème de cassis na flute gelada.',
+      'Complete com champagne devagar, inclinando a taça.',
+      'Não mexer.',
+    ],
+    ice:'Sem gelo', glass:'Flute',
+    garnish:'Framboesa flutuante (opcional)',
+    notes:'Flute deve estar gelada. Champagne bem frio (4°C). Não misturar — o cassis afunda naturalmente.',
+    substitutions:'Se faltar crème de cassis, usar licor de framboesa. Espumante brut nacional substitui champagne.',
+    nonAlcoholic:null,
+  },
+  // ── Bar da Praia ───────────────────────────────────────────────────────────
+  {
+    id:28, bar:'Bar da Praia', name:'Caipirinha de Coco', category:'Tropical',
+    gradient:'linear-gradient(135deg,#d1fae5,#059669)',
+    ingredients:[
+      {item:'Cachaça',amount:'50ml'},
+      {item:'Licor de coco',amount:'20ml'},
+      {item:'Limão taiti',amount:'1/4 unidade'},
+      {item:'Açúcar',amount:'1 colher de chá'},
+      {item:'Gelo britado',amount:'a gosto'},
+    ],
+    preparation:[
+      'Macere o limão com o açúcar no copo.',
+      'Adicione a cachaça e o licor de coco.',
+      'Complete com gelo britado e mexa.',
+    ],
+    ice:'Britado', glass:'Old fashioned ou coco verde',
+    garnish:'Palha de coco + casca de coco + limão',
+    notes:'Pode ser servido em coco verde para apresentação especial em eventos de praia.',
+    substitutions:'Se faltar licor de coco, usar leite de coco (25ml) + xarope simples (10ml).',
+    nonAlcoholic:'Substituir cachaça por água de coco (50ml) + água com gás (20ml).',
+  },
+  {
+    id:29, bar:'Bar da Praia', name:'Rum Punch', category:'Tropical',
+    gradient:'linear-gradient(135deg,#fde68a,#dc2626)',
+    ingredients:[
+      {item:'Rum escuro',amount:'50ml'},
+      {item:'Suco de laranja natural',amount:'60ml'},
+      {item:'Suco de abacaxi',amount:'60ml'},
+      {item:'Grenadine',amount:'15ml'},
+      {item:'Suco de limão taiti',amount:'10ml'},
+    ],
+    preparation:[
+      'Bata todos os ingredientes na coqueteleira com gelo.',
+      'Coar em copo com gelo em cubos.',
+      'Decore com fatias de fruta.',
+    ],
+    ice:'Cubos', glass:'Hurricane ou highball',
+    garnish:'Fatia de abacaxi + laranja + cereja',
+    notes:'Usar rum escuro para profundidade de sabor. Grenadine equilibra a acidez das frutas.',
+    substitutions:'Se faltar grenadine, usar xarope de morango. Se faltar rum escuro, usar rum dourado.',
+    nonAlcoholic:'Retirar rum. Adicionar 50ml suco de goiaba + 20ml água de coco.',
+  },
+  {
+    id:30, bar:'Bar da Praia', name:'Água de Coco Tropical', category:'Sem Álcool',
+    gradient:'linear-gradient(135deg,#fef9c3,#65a30d)',
+    ingredients:[
+      {item:'Água de coco natural',amount:'150ml'},
+      {item:'Suco de abacaxi',amount:'60ml'},
+      {item:'Suco de limão taiti',amount:'10ml'},
+      {item:'Xarope de maracujá',amount:'15ml'},
+      {item:'Gelo em cubos',amount:'a gosto'},
+    ],
+    preparation:[
+      'Misture todos os ingredientes no copo com gelo.',
+      'Mexa bem e decore com frutas.',
+    ],
+    ice:'Cubos', glass:'Highball ou copo de coco',
+    garnish:'Fatia de abacaxi + rodela de limão + guarda-chuva',
+    notes:'Drink sem álcool festivo. Usar água de coco fresca quando disponível.',
+    substitutions:null,
+    nonAlcoholic:null,
+  },
+  // ── Bar Molhado ────────────────────────────────────────────────────────────
+  {
+    id:31, bar:'Bar Molhado', name:'Frozen Margarita', category:'Frozen',
+    gradient:'linear-gradient(135deg,#a3e635,#16a34a)',
+    ingredients:[
+      {item:'Tequila Blanco',amount:'50ml'},
+      {item:'Cointreau',amount:'20ml'},
+      {item:'Suco de limão taiti',amount:'30ml'},
+      {item:'Xarope simples',amount:'15ml'},
+      {item:'Gelo em cubos',amount:'1 xícara cheia'},
+    ],
+    preparation:[
+      'Coloque todos os ingredientes no liquidificador.',
+      'Bata até consistência de neve (30 a 40 segundos).',
+      'Bordar a taça com sal.',
+      'Servir imediatamente.',
+    ],
+    ice:'Cubos (batidos no liquidificador)', glass:'Taça margarita grande',
+    garnish:'Borda de sal + rodela de limão',
+    notes:'Servir imediatamente após bater — a bebida derrete rápido. Não deixar esperando.',
+    substitutions:'Se faltar Cointreau, usar triple sec.',
+    nonAlcoholic:'Retirar tequila. Adicionar 40ml suco de tamarindo ou manga.',
+  },
+  {
+    id:32, bar:'Bar Molhado', name:'Frozen Daiquiri de Morango', category:'Frozen',
+    gradient:'linear-gradient(135deg,#fda4af,#e11d48)',
+    ingredients:[
+      {item:'Rum branco',amount:'50ml'},
+      {item:'Morangos frescos ou congelados',amount:'5 a 6 unidades'},
+      {item:'Suco de limão taiti',amount:'25ml'},
+      {item:'Xarope simples',amount:'20ml'},
+      {item:'Gelo em cubos',amount:'1 xícara'},
+    ],
+    preparation:[
+      'Coloque todos os ingredientes no liquidificador.',
+      'Bata até consistência cremosa e uniforme.',
+      'Servir em taça grande imediatamente.',
+    ],
+    ice:'Cubos (batidos)', glass:'Taça margarita ou hurricane',
+    garnish:'Morango inteiro na borda + canudo',
+    notes:'Usar morangos maduros para cor e sabor intensos. Servir imediatamente.',
+    substitutions:'Se faltar morango fresco, usar polpa congelada (mesmo resultado).',
+    nonAlcoholic:'Retirar rum. Adicionar 30ml suco de maçã.',
+  },
+  {
+    id:33, bar:'Bar Molhado', name:'Virgin Mojito', category:'Sem Álcool',
+    gradient:'linear-gradient(135deg,#d1fae5,#34d399)',
+    ingredients:[
+      {item:'Suco de limão taiti',amount:'30ml'},
+      {item:'Xarope simples',amount:'20ml'},
+      {item:'Hortelã fresca',amount:'10 folhas'},
+      {item:'Água com gás',amount:'completar (aprox. 120ml)'},
+      {item:'Gelo britado',amount:'a gosto'},
+    ],
+    preparation:[
+      'Macere a hortelã com o xarope no copo.',
+      'Adicione o suco de limão.',
+      'Complete com gelo britado.',
+      'Complete com água com gás e decore.',
+    ],
+    ice:'Britado', glass:'Highball',
+    garnish:'Ramo de hortelã + rodela de limão + canudo',
+    notes:'Hortelã deve ser macerada levemente. Equilibrar bem o dulçor com o ácido do limão.',
+    substitutions:null,
+    nonAlcoholic:null,
+  },
+  // ── Bar das Piscinas ───────────────────────────────────────────────────────
+  {
+    id:34, bar:'Bar das Piscinas', name:'Caipiroska', category:'Clássico',
+    gradient:'linear-gradient(135deg,#bfdbfe,#3b82f6)',
+    ingredients:[
+      {item:'Vodka',amount:'60ml'},
+      {item:'Limão taiti',amount:'1/2 unidade'},
+      {item:'Açúcar refinado',amount:'2 colheres de chá'},
+      {item:'Gelo britado',amount:'a gosto'},
+    ],
+    preparation:[
+      'Corte o limão e retire o miolo central.',
+      'Macere com o açúcar no copo.',
+      'Adicione a vodka.',
+      'Complete com gelo britado e mexa.',
+    ],
+    ice:'Britado', glass:'Old fashioned',
+    garnish:'Rodela de limão',
+    notes:'Mesma técnica da Caipirinha — apenas troca cachaça por vodka. Perfil de sabor mais neutro e suave.',
+    substitutions:null,
+    nonAlcoholic:'Substituir vodka por água com gás + 10ml suco de maçã.',
+  },
+  {
+    id:35, bar:'Bar das Piscinas', name:'Mojito de Morango', category:'Tropical',
+    gradient:'linear-gradient(135deg,#fda4af,#16a34a)',
+    ingredients:[
+      {item:'Rum branco',amount:'50ml'},
+      {item:'Morangos',amount:'3 a 4 unidades'},
+      {item:'Suco de limão taiti',amount:'20ml'},
+      {item:'Xarope simples',amount:'15ml'},
+      {item:'Hortelã fresca',amount:'6 folhas'},
+      {item:'Água com gás',amount:'completar'},
+    ],
+    preparation:[
+      'Macere os morangos com o xarope no copo.',
+      'Adicione a hortelã e macere levemente.',
+      'Adicione rum e suco de limão.',
+      'Complete com gelo britado.',
+      'Complete com água com gás e decore.',
+    ],
+    ice:'Britado', glass:'Highball',
+    garnish:'Morango + ramo de hortelã + rodela de limão',
+    notes:'Usar morangos maduros para cor intensa. Macerar a hortelã com cuidado para não amargar.',
+    substitutions:'Se faltar morango fresco, usar 30ml polpa de morango.',
+    nonAlcoholic:'Retirar rum. Adicionar 30ml água de coco + 20ml a mais de água com gás.',
+  },
+  {
+    id:36, bar:'Bar das Piscinas', name:'Blue Lagoon', category:'Tropical',
+    gradient:'linear-gradient(135deg,#bae6fd,#0284c7)',
+    ingredients:[
+      {item:'Vodka',amount:'40ml'},
+      {item:'Blue Curaçao',amount:'20ml'},
+      {item:'Suco de limão taiti',amount:'15ml'},
+      {item:'Sprite ou limonada',amount:'completar (aprox. 60ml)'},
+    ],
+    preparation:[
+      'Encha o copo alto com gelo em cubos.',
+      'Adicione vodka, blue curaçao e suco de limão.',
+      'Complete com Sprite ou limonada.',
+      'Mexa levemente e decore.',
+    ],
+    ice:'Cubos', glass:'Highball',
+    garnish:'Rodela de limão + cereja marrasquino',
+    notes:'A cor azul é parte essencial da apresentação. Blue Curaçao define a identidade visual do drink.',
+    substitutions:'Sprite substitui limonada sem problema.',
+    nonAlcoholic:'Retirar vodka. Adicionar 30ml suco de abacaxi + água com gás.',
+  },
+  // ── Bar do Deck ────────────────────────────────────────────────────────────
+  {
+    id:37, bar:'Bar do Deck', name:'Dry Martini', category:'Clássico',
+    gradient:'linear-gradient(135deg,#f1f5f9,#475569)',
+    ingredients:[
+      {item:'Gin London Dry',amount:'60ml'},
+      {item:'Vermute seco (dry)',amount:'10ml'},
+      {item:'Gelo em cubos',amount:'para mexer'},
+    ],
+    preparation:[
+      'Resfrie o copo martini previamente.',
+      'Coloque gelo no mixing glass.',
+      'Adicione gin e vermute.',
+      'Mexa por 30 segundos — nunca use coqueteleira.',
+      'Coe no copo martini gelado.',
+      'Decore e sirva imediatamente.',
+    ],
+    ice:'Sem gelo no copo', glass:'Taça martini',
+    garnish:'Azeitona verde espetada OU twist de limão siciliano (perguntar ao hóspede)',
+    notes:'Clássico absoluto. Nunca usar coqueteleira. Taça DEVE estar gelada. Vermute pode variar conforme preferência do hóspede.',
+    substitutions:'Se faltar gin, usar vodka (vira Vodka Martini).',
+    nonAlcoholic:null,
+  },
+  {
+    id:38, bar:'Bar do Deck', name:'Gin Mare Tônica', category:'Gin',
+    gradient:'linear-gradient(135deg,#6ee7b7,#0d9488)',
+    ingredients:[
+      {item:'Gin Mare',amount:'50ml'},
+      {item:'Água tônica premium',amount:'150ml'},
+      {item:'Gelo em cubos grandes',amount:'a gosto'},
+    ],
+    preparation:[
+      'Encha taça balão com gelo em cubos grandes.',
+      'Adicione o gin.',
+      'Complete com tônica inclinando a taça.',
+      'Mexa gentilmente uma vez.',
+      'Adicione garnish e sirva.',
+    ],
+    ice:'Cubos grandes', glass:'Taça balão',
+    garnish:'Ramo de alecrim + azeitona preta + pimenta rosa',
+    notes:'Gin Mare tem notas mediterrâneas (tomilho, basil, alecrim). O garnish reforça o perfil aromático.',
+    substitutions:'Se faltar Gin Mare, usar outro gin premium com garnish convencional (rodela de limão).',
+    nonAlcoholic:'Substituir gin por água tônica adicional + 15ml suco de limão siciliano + ramo de alecrim.',
+  },
+  {
+    id:39, bar:'Bar do Deck', name:'Dark & Stormy', category:'Clássico',
+    gradient:'linear-gradient(135deg,#d97706,#1c1917)',
+    ingredients:[
+      {item:"Rum escuro (Gosling's ou similar)",amount:'60ml'},
+      {item:'Ginger beer',amount:'120ml'},
+      {item:'Suco de limão taiti',amount:'15ml'},
+      {item:'Gelo em cubos',amount:'a gosto'},
+    ],
+    preparation:[
+      'Encha o copo alto com gelo em cubos.',
+      'Adicione a ginger beer e o suco de limão.',
+      'Adicione o rum por cima devagar — ele flutua.',
+      'NÃO mexer. O efeito "escuro por cima" é parte do drink.',
+    ],
+    ice:'Cubos', glass:'Highball',
+    garnish:'Rodela de limão',
+    notes:'O rum SEMPRE por cima, sem mexer. O efeito visual escuro e tempestuoso é intencional.',
+    substitutions:"Se faltar ginger beer, usar ginger ale. Se faltar Gosling's, usar qualquer rum escuro.",
+    nonAlcoholic:null,
+  },
+];
+
+// ─── CATEGORIAS ───────────────────────────────────────────────────────────────
+const ALL_CATEGORIES = ['Autoral','Clássico','Sem Álcool','Tropical','Frozen','Gin','Aperitivo','Assinatura'];
+const BARS = Object.keys(BAR_COLORS);
+
+const getCategoryClass = (cat) => ({
+  'Autoral':'tag-autoral','Clássico':'tag-classico','Sem Álcool':'tag-semAlcool',
+  'Frozen':'tag-frozen','Assinatura':'tag-assinatura','Tropical':'tag-tropical',
+  'Aperitivo':'tag-aperitivo','Gin':'tag-gin',
+}[cat] || 'tag-default');
+
+// ─── UTILS ────────────────────────────────────────────────────────────────────
+const usePersist = (key, initial) => {
+  const [val, setVal] = useState(() => {
+    try { const s = localStorage.getItem(key); return s ? JSON.parse(s) : initial; }
+    catch { return initial; }
+  });
+  const set = useCallback((v) => {
+    setVal(v);
+    try { localStorage.setItem(key, JSON.stringify(v)); } catch {}
+  }, [key]);
+  return [val, set];
+};
+
+function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
+
+// ─── COMPONENTES ──────────────────────────────────────────────────────────────
+
+const Tag = ({ cat }) => (
+  <span className={`tag ${getCategoryClass(cat)}`}>{cat}</span>
+);
+
+const DrinkCard = ({ drink, onOpen, isFav, onFav }) => (
+  <div
+    className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 card-hover cursor-pointer"
+    onClick={() => onOpen(drink)}
+  >
+    <div className="flex items-start gap-3">
+      <div
+        className="w-14 h-14 rounded-xl flex-shrink-0 flex items-center justify-center text-2xl shadow-sm"
+        style={{ background: drink.gradient }}
+      >
+        🍹
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="font-semibold text-slate-800 text-sm leading-tight">{drink.name}</h3>
+          <button
+            className="fav-btn flex-shrink-0 p-1 -mt-0.5"
+            onClick={e => { e.stopPropagation(); onFav(drink.id); }}
+          >
+            <Star size={16} className={isFav ? 'text-amber-400' : 'text-slate-300'} fill={isFav ? '#fbbf24' : 'none'} />
+          </button>
+        </div>
+        <div className="mt-1"><Tag cat={drink.category} /></div>
+        <div className="mt-2 text-xs text-slate-400 flex items-center gap-1">
+          <GlassWater size={11} />
+          <span className="truncate">{drink.glass}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+const DrinkModal = ({ drink, onClose, isFav, onFav }) => {
+  if (!drink) return null;
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+        <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-slate-100 px-5 py-4 flex items-center justify-between rounded-t-3xl">
+          <span className="font-semibold text-slate-500 text-sm">Ficha Técnica</span>
+          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-slate-100 transition-colors">
+            <X size={18} className="text-slate-500" />
+          </button>
+        </div>
+        <div className="px-5 pb-10">
+          <div className="h-32 rounded-2xl mt-4 flex items-center justify-center text-5xl" style={{ background: drink.gradient }}>
+            🍹
+          </div>
+          <div className="mt-4 flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-bold text-slate-800">{drink.name}</h2>
+              <div className="mt-1 flex items-center gap-2 flex-wrap">
+                <Tag cat={drink.category} />
+                <span className="text-xs text-slate-400">{drink.bar}</span>
+              </div>
+            </div>
+            <button onClick={() => onFav(drink.id)} className="fav-btn mt-1 flex-shrink-0">
+              <Star size={22} className={isFav ? 'text-amber-400' : 'text-slate-300'} fill={isFav ? '#fbbf24' : 'none'} />
+            </button>
+          </div>
+
+          {/* Ingredientes */}
+          <div className="mt-6">
+            <div className="flex items-center gap-2 mb-3">
+              <Droplets size={15} className="text-teal-600" />
+              <h3 className="font-semibold text-slate-700 text-sm">Ingredientes</h3>
+            </div>
+            <div className="bg-slate-50 rounded-xl divide-y divide-slate-100">
+              {drink.ingredients.map((ing, i) => (
+                <div key={i} className="flex justify-between items-center px-4 py-2.5">
+                  <span className="text-sm text-slate-700">{ing.item}</span>
+                  <span className="text-sm font-semibold text-teal-700 ml-2 text-right shrink-0">{ing.amount}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Preparo */}
+          <div className="mt-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Zap size={15} className="text-teal-600" />
+              <h3 className="font-semibold text-slate-700 text-sm">Modo de Preparo</h3>
+            </div>
+            <div className="space-y-3">
+              {drink.preparation.map((step, i) => (
+                <div key={i} className="flex gap-3 items-start">
+                  <div className="step-dot">{i+1}</div>
+                  <p className="text-sm text-slate-600 leading-snug pt-0.5">{step}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Grid técnico */}
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <div className="bg-slate-50 rounded-xl p-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Coffee size={12} className="text-teal-600" />
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Gelo</span>
+              </div>
+              <p className="text-sm text-slate-700">{drink.ice}</p>
+            </div>
+            <div className="bg-slate-50 rounded-xl p-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <GlassWater size={12} className="text-teal-600" />
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Copo</span>
+              </div>
+              <p className="text-sm text-slate-700">{drink.glass}</p>
+            </div>
+          </div>
+          <div className="mt-3 bg-slate-50 rounded-xl p-3">
+            <div className="flex items-center gap-1.5 mb-1">
+              <Leaf size={12} className="text-teal-600" />
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Garnish / Decoração</span>
+            </div>
+            <p className="text-sm text-slate-700">{drink.garnish}</p>
+          </div>
+
+          {drink.notes && (
+            <div className="mt-3 bg-amber-50 border border-amber-100 rounded-xl p-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <AlertCircle size={12} className="text-amber-600" />
+                <span className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Observações de Serviço</span>
+              </div>
+              <p className="text-sm text-amber-900">{drink.notes}</p>
+            </div>
+          )}
+          {drink.substitutions && (
+            <div className="mt-3 bg-blue-50 border border-blue-100 rounded-xl p-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <RefreshCw size={12} className="text-blue-600" />
+                <span className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Substituições Autorizadas</span>
+              </div>
+              <p className="text-sm text-blue-900">{drink.substitutions}</p>
+            </div>
+          )}
+          {drink.nonAlcoholic && (
+            <div className="mt-3 bg-green-50 border border-green-100 rounded-xl p-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Heart size={12} className="text-green-600" />
+                <span className="text-xs font-semibold text-green-700 uppercase tracking-wide">Versão Sem Álcool</span>
+              </div>
+              <p className="text-sm text-green-900">{drink.nonAlcoholic}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Quiz
+const QuizSection = ({ barDrinks }) => {
+  const questions = useMemo(() => {
+    if (barDrinks.length < 2) return [];
+    const qs = [];
+    barDrinks.forEach(drink => {
+      const mainIng = drink.ingredients[0];
+      const otherAmounts = DRINKS.filter(d => d.id !== drink.id).map(d => d.ingredients[0]?.amount).filter(Boolean);
+      const wrongAmounts = shuffle([...new Set(otherAmounts)]).slice(0, 3);
+      qs.push({
+        drinkId: drink.id, drinkName: drink.name,
+        question: `Qual a quantidade de "${mainIng.item}" no ${drink.name}?`,
+        correct: mainIng.amount,
+        options: shuffle([mainIng.amount, ...wrongAmounts.slice(0,3)]),
+      });
+      const glassPool = ['Taça balão','Highball','Old fashioned','Flute','Taça martini','Hurricane','Taça coupe'];
+      qs.push({
+        drinkId: drink.id, drinkName: drink.name,
+        question: `Qual o copo indicado para o ${drink.name}?`,
+        correct: drink.glass,
+        options: shuffle([drink.glass, ...shuffle(glassPool).filter(g => !drink.glass.toLowerCase().startsWith(g.toLowerCase().slice(0,6))).slice(0,3)]),
+      });
+    });
+    return shuffle(qs).slice(0, 10);
+  }, [barDrinks]);
+
+  const [qIndex, setQIndex] = useState(0);
+  const [selected, setSelected] = useState(null);
+  const [score, setScore] = useState(0);
+  const [done, setDone] = useState(false);
+  const [wrongs, setWrongs] = useState([]);
+
+  const handleSelect = (opt) => {
+    if (selected !== null) return;
+    setSelected(opt);
+    if (opt === questions[qIndex].correct) setScore(s => s+1);
+    else setWrongs(w => [...w, questions[qIndex].drinkName]);
+  };
+  const next = () => {
+    if (qIndex + 1 >= questions.length) setDone(true);
+    else { setQIndex(i => i+1); setSelected(null); }
+  };
+  const reset = () => { setQIndex(0); setSelected(null); setScore(0); setDone(false); setWrongs([]); };
+
+  if (questions.length === 0) return (
+    <div className="text-center py-10 text-slate-400">
+      <BookOpen size={28} className="mx-auto mb-2 opacity-40" />
+      <p className="text-sm">Adicione mais drinks a este bar para ativar o quiz.</p>
+    </div>
+  );
+
+  if (done) {
+    const pct = Math.round((score / questions.length) * 100);
+    return (
+      <div className="py-2">
+        <div className="text-center mb-5">
+          <div className="text-5xl mb-3">{pct >= 80 ? '🏆' : pct >= 60 ? '👍' : '📚'}</div>
+          <h3 className="text-xl font-bold text-slate-800">{score} de {questions.length} corretas</h3>
+          <p className="text-slate-500 mt-1">{pct}% de acerto</p>
+        </div>
+        <div className="progress-bar-track mb-5">
+          <div className="progress-bar-fill" style={{ width:`${pct}%` }} />
+        </div>
+        {wrongs.length > 0 && (
+          <div className="bg-red-50 border border-red-100 rounded-xl p-4 mb-4">
+            <p className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-2">Revisar</p>
+            {[...new Set(wrongs)].map(n => <p key={n} className="text-sm text-red-700">• {n}</p>)}
+          </div>
+        )}
+        <button onClick={reset} className="w-full py-3 bg-teal-600 text-white rounded-xl font-semibold text-sm hover:bg-teal-700 transition-colors">
+          Tentar novamente
+        </button>
+      </div>
+    );
+  }
+
+  const q = questions[qIndex];
+  return (
+    <div className="py-2">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs text-slate-400 font-medium">Pergunta {qIndex+1} de {questions.length}</span>
+        <span className="text-xs font-semibold text-teal-600">{score} ✓</span>
+      </div>
+      <div className="progress-bar-track mb-5">
+        <div className="progress-bar-fill" style={{ width:`${(qIndex/questions.length)*100}%` }} />
+      </div>
+      <div className="bg-slate-50 rounded-xl p-4 mb-5">
+        <p className="text-xs text-teal-600 font-semibold mb-1">{q.drinkName}</p>
+        <p className="text-slate-800 font-medium text-sm leading-snug">{q.question}</p>
+      </div>
+      <div className="space-y-2 mb-5">
+        {q.options.map((opt, i) => {
+          let cls = 'quiz-opt';
+          if (selected !== null) {
+            if (opt === q.correct) cls += ' quiz-opt-correct';
+            else if (opt === selected) cls += ' quiz-opt-wrong';
+          }
+          return (
+            <button key={i} className={cls} onClick={() => handleSelect(opt)} disabled={selected !== null}>
+              {opt}
+            </button>
+          );
+        })}
+      </div>
+      {selected !== null && (
+        <button onClick={next} className="w-full py-3 bg-teal-600 text-white rounded-xl font-semibold text-sm hover:bg-teal-700 transition-colors">
+          {qIndex+1 >= questions.length ? 'Ver resultado' : 'Próxima'}
+        </button>
+      )}
+    </div>
+  );
+};
+
+// Checklist
+const ProgressSection = ({ barDrinks, progress, onToggle }) => {
+  const studied = barDrinks.filter(d => progress[d.id]).length;
+  const pct = barDrinks.length ? Math.round((studied/barDrinks.length)*100) : 0;
+  return (
+    <div className="py-2">
+      <div className="mb-4">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-sm font-semibold text-slate-700">Drinks estudados</span>
+          <span className="text-sm font-bold text-teal-600">{studied} / {barDrinks.length}</span>
+        </div>
+        <div className="progress-bar-track">
+          <div className="progress-bar-fill" style={{ width:`${pct}%` }} />
+        </div>
+        {pct === 100 && barDrinks.length > 0 && (
+          <p className="text-xs text-teal-600 font-semibold mt-2 text-center">Todos os drinks revisados!</p>
+        )}
+      </div>
+      <div className="space-y-2">
+        {barDrinks.map(drink => (
+          <div
+            key={drink.id}
+            className="flex items-center gap-3 bg-white border border-slate-100 rounded-xl p-3 cursor-pointer hover:border-teal-200 transition-colors"
+            onClick={() => onToggle(drink.id)}
+          >
+            {progress[drink.id]
+              ? <CheckCircle2 size={18} className="text-teal-600 flex-shrink-0" />
+              : <Circle size={18} className="text-slate-300 flex-shrink-0" />
+            }
+            <span className={`text-sm flex-1 ${progress[drink.id] ? 'line-through text-slate-400' : 'text-slate-700'}`}>
+              {drink.name}
+            </span>
+            <Tag cat={drink.category} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ─── APP ──────────────────────────────────────────────────────────────────────
+export default function App() {
+  const [view, setView] = useState('home');
+  const [selectedBar, setSelectedBar] = useState(null);
+  const [selectedDrink, setSelectedDrink] = useState(null);
+  const [search, setSearch] = useState('');
+  const [activeFilters, setActiveFilters] = useState([]);
+  const [activeTab, setActiveTab] = useState('catalogo');
+  const [favorites, setFavorites] = usePersist('barbook_favs_v2', {});
+  const [progress, setProgress] = usePersist('barbook_prog_v2', {});
+
+  const barDrinks = useMemo(() => selectedBar ? DRINKS.filter(d => d.bar === selectedBar) : [], [selectedBar]);
+
+  const filteredDrinks = useMemo(() => {
+    let list = selectedBar && view === 'bar' ? barDrinks : DRINKS;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(d =>
+        d.name.toLowerCase().includes(q) ||
+        d.category.toLowerCase().includes(q) ||
+        d.ingredients.some(i => i.item.toLowerCase().includes(q))
+      );
+    }
+    if (activeFilters.length > 0) list = list.filter(d => activeFilters.includes(d.category));
+    return list;
+  }, [view, selectedBar, barDrinks, search, activeFilters]);
+
+  const favDrinks = useMemo(() => DRINKS.filter(d => favorites[d.id]), [favorites]);
+
+  const toggleFav = useCallback((id) => setFavorites(prev => ({ ...prev, [id]: !prev[id] })), [setFavorites]);
+  const toggleProgress = useCallback((id) => setProgress(prev => ({ ...prev, [id]: !prev[id] })), [setProgress]);
+  const toggleFilter = (cat) => setActiveFilters(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]);
+
+  const openBar = (bar) => {
+    setSelectedBar(bar);
+    setView('bar');
+    setSearch('');
+    setActiveFilters([]);
+    setActiveTab('catalogo');
+  };
+  const goHome = () => { setView('home'); setSelectedBar(null); setSearch(''); setActiveFilters([]); };
+
+  const barStats = useMemo(() => {
+    const s = {};
+    BARS.forEach(bar => {
+      const drinks = DRINKS.filter(d => d.bar === bar);
+      s[bar] = { total: drinks.length, studied: drinks.filter(d => progress[d.id]).length };
+    });
+    return s;
+  }, [progress]);
+
+  const totalFavs = Object.values(favorites).filter(Boolean).length;
+
+  return (
+    <div className="min-h-screen" style={{ background: '#FDFAF5' }}>
+
+      {/* HEADER */}
+      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-100 shadow-sm">
+        <div className="max-w-[860px] mx-auto px-4 py-3 flex items-center gap-3">
+          {view === 'bar' && (
+            <button onClick={goHome} className="p-1.5 rounded-full hover:bg-slate-100 transition-colors flex-shrink-0">
+              <ChevronLeft size={20} className="text-slate-600" />
+            </button>
+          )}
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
+            style={{ background: 'linear-gradient(135deg,#0f766e,#0d9488)' }}
+          >B</div>
+          <div className="flex-1 min-w-0">
+            <div className="font-bold text-slate-800 text-sm leading-tight truncate" style={{ fontFamily:'Sora,sans-serif' }}>
+              {view === 'bar' ? selectedBar : 'Costão BarBook'}
+            </div>
+            {view === 'home' && <div className="text-xs text-slate-400">Manual digital de drinks</div>}
+          </div>
+          {view === 'home' && totalFavs > 0 && (
+            <div className="flex items-center gap-1.5 text-xs text-slate-400 flex-shrink-0">
+              <Star size={12} className="text-amber-400" fill="#fbbf24" />
+              <span>{totalFavs}</span>
+            </div>
+          )}
+        </div>
+      </header>
+
+      <main className="max-w-[860px] mx-auto px-4 pb-16">
+
+        {/* ── HOME ──────────────────────────────────────────────────────────── */}
+        {view === 'home' && (
+          <div>
+            <div className="pt-8 pb-5 fade-up">
+              <h1 className="text-2xl font-bold text-slate-800 leading-tight">
+                Qual bar você está<br />atendendo agora?
+              </h1>
+              <p className="text-slate-500 mt-1 text-sm">Selecione o ponto de venda para consultar as fichas técnicas.</p>
+            </div>
+
+            {/* Busca global */}
+            <div className="relative mb-5 fade-up fade-up-1">
+              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="search"
+                placeholder="Buscar drink, ingrediente ou categoria..."
+                className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:border-teal-400 transition-colors"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+            </div>
+
+            {/* Resultado busca global */}
+            {search.trim() ? (
+              <div className="mb-8">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
+                  {filteredDrinks.length} resultado{filteredDrinks.length !== 1 ? 's' : ''}
+                </p>
+                {filteredDrinks.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Search size={28} className="mx-auto text-slate-300 mb-2" />
+                    <p className="text-sm text-slate-400">Nenhum drink encontrado</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {filteredDrinks.map(d => (
+                      <DrinkCard key={d.id} drink={d} onOpen={setSelectedDrink} isFav={!!favorites[d.id]} onFav={toggleFav} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                {/* Grid de bares */}
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3 fade-up fade-up-1">
+                  {BARS.length} pontos de venda
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {BARS.map((bar, i) => {
+                    const color = BAR_COLORS[bar];
+                    const stats = barStats[bar];
+                    const studiedPct = stats.total ? (stats.studied / stats.total) : 0;
+                    return (
+                      <div
+                        key={bar}
+                        className={`bar-card fade-up fade-up-${Math.min((i%5)+1,5)}`}
+                        style={{ background: color.bg }}
+                        onClick={() => openBar(bar)}
+                      >
+                        <div className="bar-card-inner">
+                          <div className="text-2xl mb-2">{color.emoji}</div>
+                          <h3 className="font-bold text-white text-xs leading-tight mb-2">{bar}</h3>
+                          <p className="text-xs text-white/60 mb-2">{stats.total} drink{stats.total !== 1 ? 's' : ''}</p>
+                          <div className="h-1.5 rounded-full" style={{ background:'rgba(255,255,255,0.2)' }}>
+                            <div className="h-full rounded-full transition-all duration-500" style={{ background:'rgba(255,255,255,0.6)', width:`${studiedPct*100}%` }} />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Favoritos na home */}
+                {favDrinks.length > 0 && (
+                  <div className="mt-8 fade-up">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Star size={14} className="text-amber-400" fill="#fbbf24" />
+                      <h2 className="text-sm font-bold text-slate-700">Seus Favoritos</h2>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {favDrinks.map(d => (
+                        <DrinkCard key={d.id} drink={d} onOpen={setSelectedDrink} isFav={true} onFav={toggleFav} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── VISÃO DO BAR ──────────────────────────────────────────────────── */}
+        {view === 'bar' && selectedBar && (
+          <div>
+            {/* Banner */}
+            <div className="mt-4 rounded-2xl p-5 fade-up" style={{ background: BAR_COLORS[selectedBar].bg }}>
+              <div className="text-3xl mb-2">{BAR_COLORS[selectedBar].emoji}</div>
+              <h2 className="font-bold text-white text-lg leading-tight">{selectedBar}</h2>
+              <p className="text-white/60 text-sm mt-0.5">{barDrinks.length} drinks disponíveis</p>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex mt-4 bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden fade-up fade-up-1">
+              {[
+                { key:'catalogo',  label:'Catálogo',  icon:<Wine size={12}/> },
+                { key:'favoritos', label:'Favoritos', icon:<Star size={12}/> },
+                { key:'treinar',   label:'Quiz',      icon:<BookOpen size={12}/> },
+                { key:'progresso', label:'Progresso', icon:<BarChart3 size={12}/> },
+              ].map(tab => (
+                <button
+                  key={tab.key}
+                  className={`nav-tab flex items-center justify-center gap-1 ${activeTab === tab.key ? 'nav-tab-active' : ''}`}
+                  onClick={() => setActiveTab(tab.key)}
+                >
+                  {tab.icon}{tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* TAB: Catálogo */}
+            {activeTab === 'catalogo' && (
+              <div className="mt-4 fade-up">
+                <div className="relative mb-3">
+                  <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="search"
+                    placeholder="Buscar drink ou ingrediente..."
+                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:border-teal-400 transition-colors"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                  />
+                </div>
+                <div className="flex gap-2 overflow-x-auto pb-2 mb-4 hide-scrollbar">
+                  {ALL_CATEGORIES.map(cat => (
+                    <button key={cat} className={`pill ${activeFilters.includes(cat) ? 'pill-active' : 'pill-inactive'}`} onClick={() => toggleFilter(cat)}>
+                      {cat}
+                    </button>
+                  ))}
+                  {activeFilters.length > 0 && (
+                    <button className="pill pill-inactive" style={{ color:'#dc2626', borderColor:'#fecaca' }} onClick={() => setActiveFilters([])}>
+                      <X size={10} /> Limpar
+                    </button>
+                  )}
+                </div>
+                {filteredDrinks.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Search size={28} className="mx-auto text-slate-300 mb-2" />
+                    <p className="text-sm text-slate-400">Nenhum drink encontrado</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {filteredDrinks.map(d => (
+                      <DrinkCard key={d.id} drink={d} onOpen={setSelectedDrink} isFav={!!favorites[d.id]} onFav={toggleFav} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB: Favoritos */}
+            {activeTab === 'favoritos' && (
+              <div className="mt-4 fade-up">
+                {barDrinks.filter(d => favorites[d.id]).length === 0 ? (
+                  <div className="text-center py-12">
+                    <Star size={32} className="mx-auto text-slate-200 mb-3" />
+                    <p className="text-sm font-medium text-slate-400">Nenhum favorito neste bar</p>
+                    <p className="text-xs text-slate-400 mt-1">Toque na ⭐ em qualquer ficha para favoritar.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {barDrinks.filter(d => favorites[d.id]).map(d => (
+                      <DrinkCard key={d.id} drink={d} onOpen={setSelectedDrink} isFav={true} onFav={toggleFav} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB: Quiz */}
+            {activeTab === 'treinar' && (
+              <div className="mt-4">
+                <div className="bg-white border border-slate-100 rounded-2xl p-5">
+                  <div className="flex items-center gap-2 mb-1">
+                    <BookOpen size={15} className="text-teal-600" />
+                    <h3 className="font-bold text-slate-800 text-sm">Quiz de Receitas</h3>
+                  </div>
+                  <p className="text-xs text-slate-400 mb-4">Teste seu conhecimento sobre os drinks do {selectedBar}.</p>
+                  <QuizSection barDrinks={barDrinks} />
+                </div>
+              </div>
+            )}
+
+            {/* TAB: Progresso */}
+            {activeTab === 'progresso' && (
+              <div className="mt-4">
+                <div className="bg-white border border-slate-100 rounded-2xl p-5">
+                  <div className="flex items-center gap-2 mb-1">
+                    <BarChart3 size={15} className="text-teal-600" />
+                    <h3 className="font-bold text-slate-800 text-sm">Checklist de Estudo</h3>
+                  </div>
+                  <p className="text-xs text-slate-400 mb-4">Marque os drinks que você já estudou. O progresso salva automaticamente.</p>
+                  <ProgressSection barDrinks={barDrinks} progress={progress} onToggle={toggleProgress} />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </main>
+
+      {/* Modal */}
+      {selectedDrink && (
+        <DrinkModal
+          drink={selectedDrink}
+          onClose={() => setSelectedDrink(null)}
+          isFav={!!favorites[selectedDrink.id]}
+          onFav={toggleFav}
+        />
+      )}
+
+      {/* Footer */}
+      <footer className="max-w-[860px] mx-auto px-4 py-6 border-t border-slate-100 mt-4">
+        <div className="flex items-start gap-2">
+          <Info size={12} className="text-slate-300 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-slate-400 leading-relaxed">
+            <strong>Costão BarBook</strong> — uso interno. Fichas técnicas de referência operacional.
+            Todas as receitas devem ser validadas pela supervisão de A&amp;B antes de se tornarem padrão oficial.
+            Conteúdo restrito à equipe do Costão do Santinho.
+          </p>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
