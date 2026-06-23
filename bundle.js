@@ -47512,11 +47512,33 @@
       return { cronograma, turnosDisponiveis, itensExcedentes };
     }, [turnos, tarefasOrdenadas, leiturasOrdenadas, praticasOrdenadas]);
     const metaMinima = (0, import_react36.useMemo)(() => {
-      if (perfil.nivel === "Doutorado" || perfil.nivel === "Mestrado") {
-        return { escrita: "Escrever 400 palavras fundamentadas", leitura: "Fichamento r\xE1pido de 1 artigo chave" };
-      }
-      return { escrita: "Escrever 250 palavras (1 p\xE1gina)", leitura: "Ler 10 p\xE1ginas do texto principal" };
-    }, [perfil.nivel]);
+      const defaultEscrita = perfil.nivel === "Doutorado" || perfil.nivel === "Mestrado" ? "Escrever 400 palavras fundamentadas" : "Escrever 250 palavras (1 p\xE1gina)";
+      const defaultLeitura = perfil.nivel === "Doutorado" || perfil.nivel === "Mestrado" ? "Fichamento r\xE1pido de 1 artigo chave" : "Ler 10 p\xE1ginas do texto principal";
+      const todasTarefas = [...tarefasOrdenadas, ...leiturasOrdenadas, ...praticasOrdenadas];
+      const maisUrgente = todasTarefas[0];
+      const segundaUrgente = todasTarefas[1];
+      const nomeMeta = (item) => {
+        if (!item) return null;
+        if (item.tipoItem === "Leitura") return `Ler pelo menos 10 p\xE1ginas de "${item.tituloOriginal || item.titulo}"`;
+        if (item.tipoItem === "Pratica") return `Realizar: ${item.especificacao || item.tipo}`;
+        const pag = Math.max(1, Number(item.paginas || 1));
+        const pagMvp = Math.max(1, Math.ceil(pag * 0.3));
+        switch (item.categoria) {
+          case "Escrita":
+            return `Escrever ${pagMvp} p\xE1gina(s) de "${item.nome}"`;
+          case "Revis\xE3o":
+            return `Revisar ${pagMvp} p\xE1gina(s) de "${item.nome}"`;
+          case "An\xE1lise de Dados":
+            return `Analisar ${pagMvp} p\xE1gina(s) de "${item.nome}"`;
+          default:
+            return `Avan\xE7ar pelo menos um pouco em "${item.nome}"`;
+        }
+      };
+      return {
+        escrita: nomeMeta(maisUrgente) || defaultEscrita,
+        leitura: nomeMeta(segundaUrgente) || defaultLeitura
+      };
+    }, [perfil.nivel, tarefasOrdenadas, leiturasOrdenadas, praticasOrdenadas]);
     const handleAddTarefa = (e) => {
       e.preventDefault();
       if (!novaTarefa.nome.trim()) return;
@@ -47565,7 +47587,7 @@ Foco: ${perfil.objetivo} (${perfil.nivel})
           const ct = cronogramaGerado.cronograma[`${dia}-${turno}`];
           if (ct && ct.horasTurno > 0) {
             const itensNomes = ct.itens.length > 0 ? ct.itens.map((i) => gerarNomeAcao(i, i.horasFazer)).join(" + ") : "Estudo Aut\xF4nomo";
-            slots.push(`${turno.toUpperCase()} (${ct.horasTurno}h): ${itensNomes}`);
+            slots.push(`${labelTurno(turno).toUpperCase()} (${ct.horasTurno}h): ${itensNomes}`);
           }
         });
         const diaNome = dia === "Terca" ? "Ter\xE7a" : dia === "Sabado" ? "S\xE1bado" : dia;
@@ -48031,7 +48053,10 @@ Foco: ${perfil.objetivo} (${perfil.nivel})
               ] }),
               /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-white/60 p-3 rounded-lg border border-amber-100", children: [
                 /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { className: "text-xs font-bold text-amber-800 block mb-1", children: "Sugest\xE3o pr\xE1tica:" }),
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "text-xs leading-relaxed", children: 'Olhe para a lista e pergunte: "O que acontece se eu n\xE3o fizer isso essa semana?" As tarefas de menor urg\xEAncia podem ir para o backlog. O aplicativo j\xE1 distribui automaticamente o que couber no cronograma.' })
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("ul", { className: "text-xs leading-relaxed space-y-2 list-disc pl-4", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: 'Olhe para a lista e pergunte: "O que acontece se eu n\xE3o fizer isso essa semana?" As tarefas de menor urg\xEAncia podem ir para o backlog. O aplicativo j\xE1 distribui automaticamente o que couber no cronograma.' }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: "Outra sa\xEDda \xE9 voc\xEA repensar seu raio-x do tempo verdadeiro. Por exemplo, voc\xEA pode diminuir o tempo de tela desta semana para dar conta das atividades mais urgentes." })
+                ] })
               ] })
             ] })
           ] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "bg-emerald-50 border border-emerald-200 text-emerald-900 p-4 rounded-xl flex gap-3", children: [

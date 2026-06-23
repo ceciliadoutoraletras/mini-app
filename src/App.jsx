@@ -215,11 +215,37 @@ function App() {
   }, [turnos, tarefasOrdenadas, leiturasOrdenadas, praticasOrdenadas]);
 
   const metaMinima = useMemo(() => {
-    if (perfil.nivel === 'Doutorado' || perfil.nivel === 'Mestrado') {
-      return { escrita: "Escrever 400 palavras fundamentadas", leitura: "Fichamento rápido de 1 artigo chave" };
-    }
-    return { escrita: "Escrever 250 palavras (1 página)", leitura: "Ler 10 páginas do texto principal" };
-  }, [perfil.nivel]);
+    const defaultEscrita = perfil.nivel === 'Doutorado' || perfil.nivel === 'Mestrado'
+      ? "Escrever 400 palavras fundamentadas"
+      : "Escrever 250 palavras (1 página)";
+    const defaultLeitura = perfil.nivel === 'Doutorado' || perfil.nivel === 'Mestrado'
+      ? "Fichamento rápido de 1 artigo chave"
+      : "Ler 10 páginas do texto principal";
+
+    // Usa a tarefa de maior urgência do aluno, se houver
+    const todasTarefas = [...tarefasOrdenadas, ...leiturasOrdenadas, ...praticasOrdenadas];
+    const maisUrgente = todasTarefas[0];
+    const segundaUrgente = todasTarefas[1];
+
+    const nomeMeta = (item) => {
+      if (!item) return null;
+      if (item.tipoItem === 'Leitura') return `Ler pelo menos 10 páginas de "${item.tituloOriginal || item.titulo}"`;
+      if (item.tipoItem === 'Pratica') return `Realizar: ${item.especificacao || item.tipo}`;
+      const pag = Math.max(1, Number(item.paginas || 1));
+      const pagMvp = Math.max(1, Math.ceil(pag * 0.3));
+      switch (item.categoria) {
+        case 'Escrita': return `Escrever ${pagMvp} página(s) de "${item.nome}"`;
+        case 'Revisão': return `Revisar ${pagMvp} página(s) de "${item.nome}"`;
+        case 'Análise de Dados': return `Analisar ${pagMvp} página(s) de "${item.nome}"`;
+        default: return `Avançar pelo menos um pouco em "${item.nome}"`;
+      }
+    };
+
+    return {
+      escrita: nomeMeta(maisUrgente) || defaultEscrita,
+      leitura: nomeMeta(segundaUrgente) || defaultLeitura,
+    };
+  }, [perfil.nivel, tarefasOrdenadas, leiturasOrdenadas, praticasOrdenadas]);
 
   const handleAddTarefa = (e) => {
     e.preventDefault();
@@ -269,7 +295,7 @@ function App() {
           const itensNomes = ct.itens.length > 0
             ? ct.itens.map(i => gerarNomeAcao(i, i.horasFazer)).join(' + ')
             : 'Estudo Autônomo';
-          slots.push(`${turno.toUpperCase()} (${ct.horasTurno}h): ${itensNomes}`);
+          slots.push(`${labelTurno(turno).toUpperCase()} (${ct.horasTurno}h): ${itensNomes}`);
         }
       });
       const diaNome = dia === 'Terca' ? 'Terça' : dia === 'Sabado' ? 'Sábado' : dia;
@@ -627,7 +653,10 @@ function App() {
                   <p className="mb-3">Você tem <strong>{totalHorasMapeadas}h</strong> disponíveis, mas as tarefas estimam <strong>~{tempoEstimadoTotal}h</strong>. Confira se existe alguma tarefa que pode ser <strong>delegada ou adiada para a próxima semana</strong>.</p>
                   <div className="bg-white/60 p-3 rounded-lg border border-amber-100">
                     <strong className="text-xs font-bold text-amber-800 block mb-1">Sugestão prática:</strong>
-                    <p className="text-xs leading-relaxed">Olhe para a lista e pergunte: "O que acontece se eu não fizer isso essa semana?" As tarefas de menor urgência podem ir para o backlog. O aplicativo já distribui automaticamente o que couber no cronograma.</p>
+                    <ul className="text-xs leading-relaxed space-y-2 list-disc pl-4">
+                      <li>Olhe para a lista e pergunte: "O que acontece se eu não fizer isso essa semana?" As tarefas de menor urgência podem ir para o backlog. O aplicativo já distribui automaticamente o que couber no cronograma.</li>
+                      <li>Outra saída é você repensar seu raio-x do tempo verdadeiro. Por exemplo, você pode diminuir o tempo de tela desta semana para dar conta das atividades mais urgentes.</li>
+                    </ul>
                   </div>
                 </div>
               </div>
